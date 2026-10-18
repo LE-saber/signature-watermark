@@ -1,0 +1,8 @@
+-r requirements.txt
+pytest>=8.0
+opencv-python-headless>=4.9   # tests only: reference for imgops and upstream comparison
+pyinstaller>=6.6
+python-docx>=1.1        # tests only: builds .docx fixtures
+# blind-watermark is installed with --no-deps by the build scripts (tests compare
+# the vendored copy against it); its own dependency on opencv-python would clash
+# with opencv-python-headless.

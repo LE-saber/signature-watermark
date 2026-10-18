@@ -1,0 +1,11 @@
+.env
+.venv/
+.venv-linux/
+out/
+data/
+build/
+dist/
+__pycache__/
+.pytest_cache/
+sigwatermark-location.txt
+sigwm/fonts/cjk/
