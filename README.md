@@ -1,65 +1,135 @@
 # SigWatermark
 
-給簽名圖片加隱形水印的桌面工具：批量加水印、從文件/照片/掃描件溯源、簽發記錄、備份恢復、清理空間。
-Windows、macOS、Linux 各有一個便攜壓縮包，解壓後雙擊即可使用（見 `packaging/build.py` 生成的 `使用說明.txt`）。
+**English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md)
 
-## 目錄
+[![Build](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml/badge.svg)](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/LE-saber/signature-watermark)](https://github.com/LE-saber/signature-watermark/releases/latest)
 
-| 路徑 | 內容 |
-|---|---|
-| `app.py` | 入口：無參數開窗口；`embed` / `trace` 子命令走命令行 |
-| `sigwm/core.py` | 載體生成、嵌入、提取、魯棒性自測 |
-| `sigwm/vendor/bwm/` | blind_watermark 0.4.4 的核心算法（MIT），numpy 重寫並鎖定版本 |
-| `sigwm/imgops.py` | 取代 OpenCV 的幾個圖像運算（顏色轉換、縮放、形態學、連通域） |
-| `sigwm/trace.py` | PDF / Word / 圖片溯源：嵌入圖片直接提取，整頁圖片先定位簽名 |
-| `sigwm/storage.py` | 資料目錄（便攜 / 使用者目錄）、SQLite 記錄、文件追蹤 |
-| `sigwm/backup.py` | `.swbak` 選擇性備份與恢復（可 AES-256 加密） |
-| `sigwm/secret.py` | 水印密碼：系統鑰匙串，沒有時退回資料目錄 |
-| `sigwm/gui/` | PySide6 界面，按 HTML 原型實現 |
-| `sigwm/i18n.py`、`sigwm/locales/` | 界面翻譯：繁中（原文）、简中、English、日本語、한국어、Français、Español、Русский、العربية |
-| `sigwm/fonts/`、`sigwm/gui/fonts.py` | 隨程序附帶的字體和按平台、按語言選字體的邏輯 |
-| `tools/i18n/` | 翻譯總表（每行原文 + 8 種譯文）和生成 `locales/*.json` 的腳本 |
-| `packaging/` | PyInstaller spec、打包腳本、圖標 |
-| `.github/workflows/build.yml` | 三平台構建（Win x64、macOS arm64/Intel、Linux x64），打 `v*` 標籤時發佈 |
+A portable desktop app that embeds invisible IDs in signature images and traces them back to local signing records in PDF, Word documents, images, and scans.
 
-舊版的 `signature_watermark_blind.py`、`.bat` 和 OpenStego 腳本保留未動；新程序可以在「設定」裏導入舊版記錄。
+Give each issued signature a separate ID and purpose, then check which issuance a signature came from when it appears in another document. Processing and signing records stay on your computer.
 
-## 開發
+![Batch watermarking with a signature preview](docs/images/batch-watermark.png)
 
-```bash
-python3 -m venv .venv-linux
-.venv-linux/bin/pip install -r requirements-dev.txt
-.venv-linux/bin/pip install --no-deps blind-watermark==0.4.4
-.venv-linux/bin/python -m pytest -q tests
-.venv-linux/bin/python app.py
-```
+## Download
 
-打包（只能打當前系統的包）：`python packaging/build.py`，產物在 `dist/`。Linux 需要 `binutils`。
+Choose a **portable application archive** from [Releases](https://github.com/LE-saber/signature-watermark/releases/latest). The automatically generated “Source code” downloads require a Python environment.
 
-## 字體與語言
+| Platform | Version 1.0.1 | Launch after extraction |
+| --- | --- | --- |
+| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
+| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-macos-arm64.zip) | `SigWatermark.app` |
+| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-macos-x64.zip) | `SigWatermark.app` |
+| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
 
-- macOS 用系統界面字體（SF Pro + 蘋方 / Hiragino / Apple SD Gothic）。SF Pro 不允許隨程序分發，所以只調用系統自帶的那份。
-- Windows、Linux 用附帶的 Inter（OFL，最接近 SF Pro 的開源字體）；中日韓字用系統字體（微軟正黑/雅黑、Yu Gothic、Malgun Gothic；Linux 用 Noto Sans CJK，Linux 包裏另附一份）。
-- 漢字按界面語言選字形：日文界面用日文字形，简中用大陸字形。阿拉伯文用附帶的 Noto Sans Arabic，界面自動改為從右到左。
-- 語言默認跟隨系統，可在「設定 → 界面語言」切換，重新啟動後生效。
+No separate Python installation is needed. Extract the entire archive and keep all support files together. Every archive includes an English quick-start guide and all three README versions. Verify downloads with [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SHA256SUMS.txt).
 
-改了界面文字或新增 `tr("…")` 之後：在 `tools/i18n/table*.py` 補上譯文，再執行
+Windows builds are unsigned. macOS builds are unsigned and not notarized; first launch may require approval in macOS security settings. Native macOS builds use macOS 15 runners. Linux builds use Ubuntu 22.04 and require a working desktop environment. On Debian/Ubuntu, install missing Qt/xcb runtime libraries with:
 
 ```bash
-.venv-linux/bin/python tools/i18n/build.py
+sudo apt-get install libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0 libxcb-randr0 libxcb-render-util0 libxcb-image0 libdbus-1-3
 ```
 
-腳本會檢查每條字符串都有譯文、佔位符一致；`tests/test_i18n.py` 也會檢查。
+## Quick start
 
-## 和舊腳本相比的變化
+1. Open the app and set a **watermark password of at least 12 characters** in Settings.
+2. Add signature images or a folder in **Batch watermark**. Transparent PNGs work best. Scans can first be prepared with the separate `tools/signature-remove-bg/` tool.
+3. Choose a purpose and carrier style, preview the result, and generate watermarked PNGs. Each image receives a separate ID and signing record.
+4. Use those PNGs in your documents. To investigate one later, open **Signature tracing** and add the PDF, Word document, image, or scan. Use manual region selection if automatic detection misses the signature.
+5. Back up signing records and the watermark password before moving computers or cleaning files.
 
-- **在外觀上嵌入**：舊腳本把水印嵌在半透明載體的原始 RGB 上，PNG 疊到文件上後信號被透明度削弱，「合成到白底」基本提取不出來。現在先算出載體疊在白紙上的樣子，在那上面嵌入，再反推半透明像素。四種模式都能扛住合成白底、縮小到 50%、JPEG 75。新圖格式記為 `SIG-BLIND-WM-2`；舊圖仍可提取。
-- **白底模式底色 250**：純白 255 會被截斷導致翻位（原版算法自己的回提也會錯）。
-- **溯源判定**：63 位裏有 14 位是所有 ID 共有的格式位，只用其餘 49 位區分記錄；≥46 判匹配，43–45 且明顯領先其他記錄判「可能匹配」。閾值用「別人的乾淨水印」校準，測試裏沒有誤報。
+The README defaults to English. The application UI follows the system language and supports English, Simplified Chinese, Traditional Chinese, Japanese, Korean, French, Spanish, Russian, and Arabic. Change it in Settings and restart; Arabic uses right-to-left layout.
 
-## 已知限制
+## Features
 
-- 簽名縮到原尺寸約 60% 以下、或經過強壓縮後，水印信號不足，只能給出「可能匹配」或找不到。
-- 照片沒有做透視校正，請盡量正面拍攝；可以在溯源頁手動框選簽名。
-- 半透明載體只在白色或淺色紙上可靠。
-- macOS 包未簽名公證，第一次需右鍵「打開」；Windows 未做代碼簽名，可能出現 SmartScreen 提示。
+- Batch processing, file/folder drag and drop, purpose labels, custom output names, previews, and optional read-back self-checks.
+- Four carriers: white, translucent, feathered, and feathered with subtle texture.
+- Tracing from PDF embedded images, Word `.docx`/`.docm` media, image files, photos, and scans, with size restoration and manual region selection.
+- Searchable local signing records with timestamps, source/output SHA-256 hashes, image geometry, and CSV export.
+- Selective `.swbak` backup/restore, optional AES-256 encryption, backup history, and reminders.
+- Storage usage and cleanup, including an option to delete only backed-up files while retaining signing records.
+- Desktop GUI and command-line entry points; the main app requires no server.
+
+## How it works
+
+Each issued image carries a short ID such as `W1234ABC`, encoded as 63 watermark bits. The purpose and other metadata live in SQLite and are looked up by ID.
+
+The bundled core adapts `blind_watermark 0.4.4` using NumPy: YUV conversion → Haar DWT → 4×4 low-frequency blocks → DCT → password-seeded coefficient shuffling → SVD quantization. Bits repeat across blocks and channels. Extraction reverses the shuffling and aggregates observations without needing the original image.
+
+The current `SIG-BLIND-WM-2` format embeds into the image's appearance on white paper, then reconstructs RGB values while preserving alpha. This reduces signal loss when semi-transparent PNGs are placed in a document. Extraction also tries raw RGB for legacy marks.
+
+For scans, ink-region detection and the stored signature bounding box help reconstruct the carrier. Matching uses the 49 variable positions in the encoding: at least 46 agreeing positions yields a match; 43–45 can yield a possible match if clearly ahead of other records. These thresholds are not accuracy percentages.
+
+## Data and passwords
+
+Portable mode uses `data/` next to the executable. If that location is not writable, the app uses the platform's user data directory. Settings shows the active location. Changing storage mode takes effect on restart and does not automatically move existing data.
+
+| Data | Storage |
+| --- | --- |
+| Settings | `settings.json` |
+| Signing records and tracked files | `records.sqlite` |
+| Source image copies | `uploads/` |
+| Watermarked images | `out/` by default; customizable |
+| Documents imported through the tracing GUI | `docs/` |
+| Cache / backups | `cache/` / `backup/` |
+
+The watermark password is stored in the OS keyring when available, otherwise in `settings.json`. Keep the data directory private. Including the watermark password in a backup requires encryption. Retain the original password and records: changing the password does not re-embed previously issued images, and an ID alone cannot recover its purpose or signing history.
+
+## Command line
+
+Configure the password in the GUI first. Windows PowerShell examples, from the extracted archive directory:
+
+```powershell
+.\SigWatermark\SigWatermark.exe embed .\signatures --purpose "Contract A" --mode feathered_texture
+.\SigWatermark\SigWatermark.exe trace .\contract.pdf .\document.docx .\scan.jpg
+.\SigWatermark\SigWatermark.exe --data-dir .\alternate-data embed .\signature.png --out .\output
+```
+
+On Linux, use `./SigWatermark/SigWatermark`; on macOS, use `./SigWatermark.app/Contents/MacOS/SigWatermark` with the same arguments. `--data-dir` must precede the subcommand. Available modes: `white`, `translucent`, `feathered`, `feathered_texture`.
+
+## Limitations
+
+- Recovery depends on signal and alignment. Heavy compression, severe resizing, cropping, rotation, perspective changes, or low-quality printing/scanning may prevent a match. Some sample tests recover at 50% size after restoration; this is not a general guarantee.
+- Semi-transparent carriers are intended for white or light backgrounds. Photo tracing does not perform perspective correction.
+- Automatic PDF tracing primarily examines embedded images; it does not scan every rendered page as a fallback. Word results enumerate embedded images rather than actual page numbers. Older `.doc` files are unsupported.
+- A watermark supports issuance tracing. It does not prevent copying, authenticate the signer, or protect the complete document from modification.
+- Automated robustness checks cover white-background compositing, 75%/50% resizing with size restoration, and JPEG quality 90 on the supplied fixture, rather than a universal recovery rate.
+
+## Development
+
+CI uses Python 3.12. On Windows:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pip install --no-deps blind-watermark==0.4.4
+.\.venv\Scripts\python.exe -m pytest -q tests
+.\.venv\Scripts\python.exe app.py
+.\.venv\Scripts\python.exe packaging/build.py
+```
+
+On macOS/Linux, create the environment with `python3 -m venv .venv`, then use `.venv/bin/python` for the same commands. Linux needs the Qt libraries listed above and `binutils` for packaging.
+
+PyInstaller builds only for the current OS/architecture. `packaging/build.py` recreates `build/` and `dist/`; archives appear in `dist/`. Tag pushes matching `v*` run native tests and builds for all four targets, generate checksums, and publish after all builds succeed.
+
+UI translations are maintained in `tools/i18n/table*.py`. After changing UI strings, update translations and run `python tools/i18n/build.py`; the script and tests check coverage and placeholders.
+
+## Source layout
+
+| Path | Responsibility |
+| --- | --- |
+| `app.py` | GUI/CLI entry point |
+| `sigwm/core.py`, `sigwm/vendor/bwm/` | Carriers, embedding, extraction, robustness checks |
+| `sigwm/imgops.py`, `sigwm/trace.py` | Image operations, document parsing, detection, matching |
+| `sigwm/service.py`, `sigwm/storage.py` | Batch processing, settings, SQLite, tracked files |
+| `sigwm/backup.py`, `sigwm/secret.py` | Backup/restore and password storage |
+| `sigwm/gui/`, `sigwm/i18n.py`, `sigwm/locales/` | Desktop interface and localization |
+| `packaging/`, `.github/workflows/build.yml` | Native portable builds and releases |
+| `tests/` | Core, tracing, data, image-operation, and translation tests |
+| `tools/signature-remove-bg/` | Separate background-removal web tool with its own dependencies |
+
+Legacy Python, batch, PowerShell, and OpenStego files are retained. Import old signing records through Settings. Legacy records lack the bounding box needed for automatic on-page localization.
+
+## Third-party notices
+
+The watermark core is adapted from [guofei9987/blind_watermark](https://github.com/guofei9987/blind_watermark) under MIT; see `sigwm/vendor/bwm/LICENSE`. Bundled Inter, IBM Plex Mono, and Noto fonts use SIL OFL; notices accompany the fonts and portable archives. macOS uses installed system UI fonts. The separate background-removal tool includes its own license and dependency documentation.

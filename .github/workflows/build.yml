@@ -7,16 +7,28 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest      # Windows x64
-          - os: macos-14            # macOS Apple silicon
-          - os: macos-13            # macOS Intel
-          - os: ubuntu-22.04        # Linux x64; older glibc so the build runs on more distros
+          - os: windows-latest
+            arch: x64
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: x64
+          - os: ubuntu-22.04        # Older glibc for wider Linux compatibility
+            arch: x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -24,6 +36,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          architecture: ${{ matrix.arch }}
 
       - name: Qt runtime libraries (Linux)
         if: runner.os == 'Linux'
@@ -69,10 +82,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
+      - name: Generate archive checksums
+        working-directory: artifacts
+        run: sha256sum SigWatermark-* > SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
+          name: SigWatermark ${{ github.ref_name }}
+          body_path: packaging/RELEASE_NOTES.md
+          fail_on_unmatched_files: true
           files: artifacts/*

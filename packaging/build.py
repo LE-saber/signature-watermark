@@ -21,29 +21,38 @@ from sigwm import __version__  # noqa: E402
 README = """SigWatermark {version}
 =====================
 
-啟動
-  Windows : 解壓後雙擊 SigWatermark\\SigWatermark.exe
-  macOS   : 解壓後雙擊 SigWatermark.app（第一次請按右鍵選「打開」）
-  Linux   : 解壓後執行 SigWatermark/SigWatermark
-            若提示缺少 xcb 相關庫，請安裝 libxcb-cursor0（Debian/Ubuntu）
+Start
+  Extract the entire archive before launching. No Python installation is needed.
+  Windows : Double-click SigWatermark\\SigWatermark.exe.
+  macOS   : Open SigWatermark.app. The app is unsigned and not notarized.
+  Linux   : Run ./SigWatermark/SigWatermark.
+            Some desktop installations need xcb runtime libraries; see README.md.
+  Keep the application and all its support files together.
 
-資料位置
-  預設為便攜模式：簽發記錄、輸出圖片和設定都存在程式旁邊的 data/ 資料夾，
-  整個資料夾可以直接拷到別的電腦。若程式所在位置不能寫入（例如 macOS 從
-  「下載」直接打開時），會自動改用使用者目錄，可在「設定」裏查看。
+Data
+  Portable mode stores settings, signing records and images in data/ next to the
+  application. If that location is not writable, the user data folder is used.
+  Check Settings for the active location.
 
-水印密碼
-  第一次打開請在「設定」裏設定水印密碼（至少 12 個字元）。提取和溯源時必須
-  使用同一個密碼。換電腦時請用「備份與恢復」帶走（可勾選同時備份水印密碼）。
+Watermark password
+  Set a password of at least 12 characters in Settings before embedding.
+  Tracing requires the same password and the corresponding signing records.
+  Use Backup and restore when moving computers. Including the watermark password
+  in a backup requires an encrypted backup.
 
-命令列（可選）
-  SigWatermark embed <圖片或資料夾> [--mode feathered_texture] [--purpose 用途]
-  SigWatermark trace <PDF/Word/圖片>
+Command line (optional)
+  SigWatermark embed <images or folders> [--mode feathered_texture] [--purpose text]
+  SigWatermark trace <PDF/Word/images>
 
-第三方元件
-  水印核心改寫自 guofei9987/blind_watermark（MIT）。
-  字體：Inter、Noto Sans Arabic、IBM Plex Mono（Linux 版另含 Noto Sans CJK），均為 SIL OFL。
-  授權全文見 licenses/。
+Languages
+  README.md is in English. See README.zh-CN.md for Simplified Chinese and
+  README.zh-TW.md for Traditional Chinese. The UI follows the system language
+  by default and can be changed in Settings.
+
+Third-party components
+  Watermark core adapted from guofei9987/blind_watermark (MIT).
+  Bundled fonts: Inter, Noto Sans Arabic, IBM Plex Mono and, on Linux,
+  Noto Sans CJK (SIL OFL). License texts are included in licenses/.
 """
 
 
@@ -86,7 +95,10 @@ def main() -> int:
         shutil.copytree(dist / "SigWatermark.app", stage / "SigWatermark.app", symlinks=True)
     else:
         shutil.copytree(dist / "SigWatermark", stage / "SigWatermark", symlinks=True)
-    (stage / "使用說明.txt").write_text(README.format(version=__version__), encoding="utf-8")
+    (stage / "README.txt").write_text(README.format(version=__version__), encoding="utf-8")
+    for name in ("README.md", "README.zh-CN.md", "README.zh-TW.md"):
+        shutil.copy2(ROOT / name, stage / name)
+    shutil.copytree(ROOT / "docs" / "images", stage / "docs" / "images")
     lic = stage / "licenses"
     lic.mkdir()
     shutil.copy2(ROOT / "sigwm" / "vendor" / "bwm" / "LICENSE", lic / "blind_watermark-LICENSE.txt")

@@ -3,6 +3,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(SPECPATH).parent
+sys.path.insert(0, str(ROOT))
+from sigwm import __version__
+
 ICON = ROOT / "packaging" / "icon.png"   # PyInstaller converts it to .ico / .icns (needs Pillow)
 
 a = Analysis(
@@ -36,6 +39,6 @@ if sys.platform == "darwin":
         name="SigWatermark.app",
         icon=str(ICON),
         bundle_identifier="app.sigwatermark.desktop",
-        info_plist={"NSHighResolutionCapable": True, "CFBundleShortVersionString": "1.0.0",
+        info_plist={"NSHighResolutionCapable": True, "CFBundleShortVersionString": __version__,
                     "LSApplicationCategoryType": "public.app-category.productivity"},
     )
