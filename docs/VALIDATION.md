@@ -32,6 +32,8 @@ A single signature from `tests/fixtures/signature.png` was issued with opacity 2
 | Cream | No match | Match, 63/63 agreeing bits |
 | Light blue | No match | Match, 63/63 agreeing bits |
 
+Watermark IDs and carrier textures vary between issuances. A low-opacity signature over printed text can yield only a possible match, including on a synthetic white-paper page observed during release CI. The table above describes one controlled comparison, not every possible issued image.
+
 Bit agreement is not a confidence percentage. The unchanged classifier uses the 49 variable encoding positions. `tests/test_trace.py` also checks unrelated IDs and resized signatures. Shape-based location needs the issued output PNG at the stored path; deleting that image removes this fallback, while direct watermark extraction can still be attempted.
 
 ## Performance

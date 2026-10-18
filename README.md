@@ -109,6 +109,7 @@ On Linux, use `./SigWatermark/SigWatermark`; on macOS, use `./SigWatermark.app/C
 
 - Automatic background removal is designed for cropped signatures on paper. Automatic cleanup targets ruled/grid paper, form lines and crossing strokes, desk/shadow edges, uneven light and paper texture; difficult inputs may still need manual cleanup. Other handwriting next to the signature is not removed; crop it out first.
 
+- Low-opacity signatures over printed text may produce only a possible match; recovery can vary with the issued watermark ID and carrier texture. Keep original output images and use the original document when a result is uncertain.
 - Recovery depends on signal and alignment. Heavy compression, severe resizing, cropping, rotation, perspective changes, or low-quality printing/scanning may prevent a match. Some sample tests recover at 50% size after restoration; this is not a general guarantee.
 - Semi-transparent carriers are intended for white or light backgrounds. Photo tracing does not perform perspective correction.
 - Automatic PDF tracing primarily examines embedded images; it does not scan every rendered page as a fallback. Word results enumerate embedded images rather than actual page numbers. Older `.doc` files are unsupported.

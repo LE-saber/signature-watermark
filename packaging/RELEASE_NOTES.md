@@ -15,6 +15,8 @@ Seven synthetic background cases retained 98.63–100% of known ink. Junk pixels
 
 Processing speed varies: in a three-run comparison on a 2700×1140 plain-paper signature, median time increased from 0.981 s to 2.894 s because of the additional cleanup. See [validation methods, results and limits](https://github.com/LE-saber/signature-watermark/blob/v1.0.4/docs/VALIDATION.md).
 
+Low-opacity signatures over printed text can yield only a possible match; results vary between watermark IDs and textures. This also occurred once on a synthetic white-paper page during release CI. Preserve output images and verify uncertain results against the original document.
+
 ### Upgrade
 
 - Back up signing records, output PNGs and the original watermark password. Including the password in a backup requires encryption.
@@ -42,5 +44,7 @@ No separate Python installation is needed. Archives include an English quick-sta
 - **密码设置：** 首次启动可一键随机生成并保存，设置页增加随机生成和复制。生成密码包含 24 个随机字符，以连字符分组；也可自行输入至少 12 个字符的密码。
 - **实测范围：** 七组合成去背景样本保留 98.63%～100% 的笔迹；三张白色、米黄、浅蓝纸的压正文 JPEG 对照图，旧版均未匹配，当前版均匹配。样本结果不代表通用恢复率。新增清理存在性能成本，不能保证所有图片更快，详细结果见验证文档。
 - **升级注意：** 备份记录、输出图片和原密码；包含密码的备份必须加密。旧设置中的 96 会改为 24（手动选为 96 也会迁移），需要时可重新设回。形状定位依赖记录路径下的输出 PNG，请保留输出图片。完整解压后在设置中检查数据目录，切换存储模式不会自动搬移数据。
+
+低不透明度签名压正文时仍可能只达到“可能匹配”，结果会随水印 ID 和纹理变化；发布测试中也观察到过这一情况。请保留输出图片，结果不确定时检查原文件。
 
 水印格式仍为 `SIG-BLIND-WM-2`。英文、简体中文、繁体中文 README 和验证文档随包提供。
