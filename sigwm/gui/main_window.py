@@ -142,7 +142,7 @@ class MainWindow(QMainWindow):
         self._status()
         if len(pw()) < 12:
             self.go("settings")
-            QTimer.singleShot(400, lambda: t(tr('歡迎使用。請先設定水印密碼（至少 12 個字元）')))
+            QTimer.singleShot(400, lambda: t(tr('歡迎使用。請先設定水印密碼，可以直接隨機生成')))
         else:
             self.go("embed")
 

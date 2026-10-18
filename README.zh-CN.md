@@ -11,18 +11,29 @@
 
 ![批量加水印与签名预览](docs/images/batch-watermark.png)
 
+## 1.0.4 更新
+
+- 新增横格线、方格线、表格线、照片边缘杂物和纸面纹理清理，尽量保留交叉笔画、签名下划线和点。
+- 默认载体不透明度从 96 降到 24/255（约 9%）；溯源新增纸色补偿，以及签名压住印刷文字时的形状定位。
+- 首次启动支持随机生成并保存密码，设置页增加随机生成和复制。
+- 水印格式仍为 `SIG-BLIND-WM-2`，旧图片仍需要原密码和签发记录。
+
+![首次启动密码设置](docs/images/password-setup.png)
+
+升级前请备份记录、输出图片和密码。旧设置中的不透明度 96 会迁移为 24，包括手动选为 96 的情况；其他值保留。形状定位依赖记录路径下的输出 PNG，清理数据时请保留输出图片。参见[验证结果与限制（英文）](docs/VALIDATION.md)，其中包含实测性能取舍。
+
 ## 下载
 
 从 [Releases](https://github.com/LE-saber/signature-watermark/releases/latest) 下载**便携应用压缩包**。GitHub 自动生成的 “Source code” 是源码包，需要自行配置 Python 环境。
 
-| 平台 | 1.0.3 版本 | 解压后启动 |
+| 平台 | 1.0.4 版本 | 解压后启动 |
 | --- | --- | --- |
-| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
-| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-macos-arm64.zip) | `SigWatermark.app` |
-| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-macos-x64.zip) | `SigWatermark.app` |
-| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
+| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
+| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-arm64.zip) | `SigWatermark.app` |
+| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-x64.zip) | `SigWatermark.app` |
+| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
 
-无需另外安装 Python。请完整解压，保留程序与配套文件。每个压缩包均附带英文快速说明和三种语言的 README。校验值见 [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SHA256SUMS.txt)。
+无需另外安装 Python。请完整解压，保留程序与配套文件。每个压缩包均附带英文快速说明和三种语言的 README。校验值见 [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SHA256SUMS.txt)。
 
 Windows 包未代码签名；macOS 包未签名、公证，首次启动可能需要在系统安全设置中批准。macOS 包在 macOS 15 原生环境构建。Linux 包在 Ubuntu 22.04 构建，需要桌面环境。Debian/Ubuntu 如缺少 Qt/xcb 运行库，可安装：
 
@@ -32,7 +43,7 @@ sudo apt-get install libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 lib
 
 ## 快速开始
 
-1. 打开程序，在“设置”中设置**至少 12 个字符的水印密码**。
+1. 打开程序，在“设置”中点 **随机生成并保存**，让程序生成高强度密码；也可以自己输入**至少 12 个字符**的密码。
 2. 在“批量加水印”中添加白纸、浅色纸上的签名照片、扫描图或文件夹。“自动去除原图背景”默认开启，已有透明笔迹 PNG 保留原样。
 3. 填写用途，选择载体样式，预览并生成水印 PNG。浅色笔迹可提高“笔迹保留阈值”；需要保留原设计时可关闭自动去背景。每张图片都有独立 ID 和签发记录。
 4. 将生成的 PNG 用于文件。日后在“签名溯源”中添加 PDF、Word、图片或扫描件进行查询；自动检测不准时可手动框选签名区域。
@@ -96,7 +107,7 @@ Linux 使用 `./SigWatermark/SigWatermark`，macOS 使用 `./SigWatermark.app/Co
 
 ## 使用限制
 
-- 自动去背景适用于白纸或浅色纸上的局部签名图。请先裁切到签名区域；横格线、其他手写内容和复杂照片背景可能需要用独立的 `tools/signature-remove-bg/` 工具手动清理。
+- 自动去背景适用于纸上的局部签名图。横格纸、方格纸、表格线（包括被笔画穿过的地方）、边缘的桌面或阴影、光照不均和粗糙纸面会尝试自动清理，复杂输入仍可能需要手动修整。签名旁边的其他手写内容不会去除，请先裁掉。载体默认不透明度为 24/255（约 9%），下面的文字清晰可见；溯源会补偿有色纸张，并能找到紧贴印刷文字的签名。
 
 - 恢复依赖水印信号和对齐。强压缩、大幅缩放、裁剪、旋转、透视变形及低质量打印扫描都可能导致失败。部分样本缩小到 50% 后恢复尺寸仍能提取，不代表所有图片都能达到相同效果。
 - 半透明载体适合白色或浅色背景；照片溯源未做透视校正。

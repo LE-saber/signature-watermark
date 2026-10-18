@@ -1,6 +1,7 @@
 """Watermark password storage: OS keyring first, data-folder fallback."""
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 
 from .storage import Store
@@ -19,6 +20,15 @@ def _keyring():
         return keyring
     except Exception:  # noqa: BLE001 - any backend error means "no keyring"
         return None
+
+
+# No 0/O, 1/l/I: the password may be copied down by hand.
+_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+
+
+def generate_password(groups: int = 6, size: int = 4) -> str:
+    """Random password such as 'K7mQ-x9Tb-…': 24 symbols from 57, about 140 bits."""
+    return "-".join("".join(secrets.choice(_ALPHABET) for _ in range(size)) for _ in range(groups))
 
 
 def keyring_available() -> bool:

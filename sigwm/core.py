@@ -34,7 +34,7 @@ class SelfCheckError(WatermarkError):
 class CarrierParams:
     mode: str = "feathered_texture"
     padding: int = 64
-    alpha: int = 96
+    alpha: int = 24          # ~9 % opacity: text under the carrier stays readable
     feather: int = 48
     texture: int = 4
     remove_background: bool = True
@@ -43,7 +43,7 @@ class CarrierParams:
     def validate(self):
         if self.mode not in MODES:
             raise WatermarkError(tr('未知的載體模式：{mode}', mode=self.mode))
-        for name, lo, hi in (("padding", 16, 300), ("alpha", 16, 255), ("feather", 4, 250), ("texture", 0, 20),
+        for name, lo, hi in (("padding", 16, 300), ("alpha", 12, 255), ("feather", 4, 250), ("texture", 0, 20),
                              ("background_threshold", 100, 250)):
             v = getattr(self, name)
             if not lo <= v <= hi:
@@ -276,6 +276,66 @@ def extract_candidates(img: Image.Image | np.ndarray, password: str,
     if _has_alpha(img):
         out.append(_extract_bgr(_to_bgr(img, flatten=False), seed_img, seed_wm, size))
     return out
+
+
+# ---------------------------------------------------------------- paper colour
+
+def carrier_alpha(mode: str, width: int, height: int, alpha: int, feather: int) -> np.ndarray | None:
+    """Opacity (0..1) of a carrier as built by build_carrier, ink excluded. None for an opaque carrier."""
+    if mode == "translucent":
+        return np.full((height, width), alpha / 255.0)
+    if mode in ("feathered", "feathered_texture"):
+        return feather_mask(width, height, alpha, feather) / 255.0
+    return None
+
+
+def paper_from_ring(bgr: np.ndarray, a: np.ndarray, ring: int = 3) -> np.ndarray:
+    """Estimate the paper colour (BGR) from the carrier's outer ring.
+
+    Feathered carriers are fully transparent at the edge, so the ring shows the
+    paper itself. Under a translucent carrier the ring looks like 250 on white
+    paper (the appearance the mark was embedded into), which gives the paper back.
+    """
+    h, w = a.shape
+    m = np.zeros((h, w), bool)
+    m[:ring], m[-ring:], m[:, :ring], m[:, -ring:] = True, True, True, True
+    obs = np.median(bgr[m].astype(np.float64), axis=0)
+    ar = float(np.median(a[m]))
+    if ar < 0.02:
+        return obs
+    if ar > 0.95:
+        return np.full(3, 255.0)
+    return 255.0 - (APPEARANCE_CAP - obs) / (1.0 - ar)
+
+
+def paper_from_surroundings(page: np.ndarray, box: tuple[float, float, float, float], band: float) -> np.ndarray | None:
+    """Paper colour (BGR) just outside a box on a page, ignoring text and other ink."""
+    h, w = page.shape[:2]
+    x0, y0, x1, y1 = (int(round(v)) for v in box)
+    b = max(3, int(band))
+    X0, Y0, X1, Y1 = max(0, x0 - b), max(0, y0 - b), min(w, x1 + b), min(h, y1 + b)
+    region = page[Y0:Y1, X0:X1].astype(np.float64)
+    m = np.ones(region.shape[:2], bool)
+    m[max(0, y0 - Y0):max(0, y1 - Y0), max(0, x0 - X0):max(0, x1 - X0)] = False
+    px = region[m]
+    if len(px) < 50:
+        return None
+    lum = px @ np.array([0.114, 0.587, 0.299])
+    return np.median(px[lum >= np.percentile(lum, 50)], axis=0)
+
+
+def correct_paper(bgr: np.ndarray, a: np.ndarray, paper_bgr: np.ndarray) -> np.ndarray:
+    """Show a carrier photographed on tinted paper as it would look on white paper.
+
+    On paper P the carrier composites to P*(1-a) + rgb*a; on white it is
+    255*(1-a) + rgb*a, so add (255 - P)*(1-a). Ink is opaque and barely changes.
+    """
+    out = bgr.astype(np.float64) + (255.0 - paper_bgr)[None, None, :] * (1.0 - a[:, :, None])
+    return np.clip(np.round(out), 0, 255).astype(np.uint8)
+
+
+def paper_is_white(paper_bgr: np.ndarray | None) -> bool:
+    return paper_bgr is None or float(np.abs(255.0 - paper_bgr).max()) <= 3.0
 
 
 def bit_agreement(bits: np.ndarray, short_id: str) -> int:

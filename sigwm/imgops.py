@@ -126,3 +126,66 @@ def label_boxes(mask: np.ndarray) -> list[tuple[int, int, int, int, int]]:
         else:
             out[r] = [x0, y, x1, y + 1, x1 - x0]
     return [(int(b[0]), int(b[1]), int(b[2] - b[0]), int(b[3] - b[1]), int(b[4])) for b in out.values()]
+
+
+def label(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """8-connected components -> (labels, stats).
+
+    labels: int32 image, 0 = background, components numbered from 1.
+    stats: (n+1, 5) array of x, y, w, h, area (row 0 unused), like OpenCV.
+    """
+    h, w = mask.shape
+    labels = np.zeros((h, w), np.int32)
+    padded = np.zeros((h, w + 2), np.int8)
+    padded[:, 1:-1] = mask
+    d = np.diff(padded, axis=1)
+    rs, cs = np.nonzero(d == 1)
+    _, ce = np.nonzero(d == -1)
+    n = len(rs)
+    if n == 0:
+        return labels, np.zeros((1, 5), np.int64)
+    parent = np.arange(n)
+
+    def find(i):
+        root = i
+        while parent[root] != root:
+            root = parent[root]
+        while parent[i] != root:
+            parent[i], i = root, parent[i]
+        return root
+
+    first = np.searchsorted(rs, np.arange(h + 1))
+    for r in range(1, h):
+        i, j = first[r - 1], first[r]
+        a1, b1 = first[r], first[r + 1]
+        while i < a1 and j < b1:
+            if cs[i] <= ce[j] and cs[j] <= ce[i]:
+                ri, rj = find(i), find(j)
+                if ri != rj:
+                    parent[rj] = ri
+            if ce[i] < ce[j]:
+                i += 1
+            else:
+                j += 1
+    roots = np.array([find(i) for i in range(n)])
+    _, comp = np.unique(roots, return_inverse=True)
+    comp = comp + 1
+    for k in range(n):
+        labels[rs[k], cs[k]:ce[k]] = comp[k]
+    m = comp.max()
+    stats = np.zeros((m + 1, 5), np.int64)
+    x0 = np.full(m + 1, w); y0 = np.full(m + 1, h); x1 = np.zeros(m + 1, np.int64); y1 = np.zeros(m + 1, np.int64)
+    np.minimum.at(x0, comp, cs); np.minimum.at(y0, comp, rs)
+    np.maximum.at(x1, comp, ce); np.maximum.at(y1, comp, rs + 1)
+    area = np.bincount(comp, weights=ce - cs, minlength=m + 1)
+    stats[:, 0], stats[:, 1], stats[:, 2], stats[:, 3], stats[:, 4] = x0, y0, x1 - x0, y1 - y0, area
+    stats[0] = 0
+    return labels, stats
+
+
+def run_lengths(mask: np.ndarray) -> np.ndarray:
+    """Lengths of horizontal runs of True."""
+    padded = np.zeros((mask.shape[0], mask.shape[1] + 2), np.int8)
+    padded[:, 1:-1] = mask
+    d = np.diff(padded, axis=1)
+    return np.nonzero(d.ravel() == -1)[0] - np.nonzero(d.ravel() == 1)[0]

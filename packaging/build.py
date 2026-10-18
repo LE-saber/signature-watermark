@@ -36,7 +36,7 @@ Data
   Check Settings for the active location.
 
 Watermark password
-  Set a password of at least 12 characters in Settings before embedding.
+  Use Generate and save in Settings, or enter at least 12 characters before embedding.
   Tracing requires the same password and the corresponding signing records.
   Use Backup and restore when moving computers. Including the watermark password
   in a backup requires an encrypted backup.
@@ -112,6 +112,7 @@ def main() -> int:
     for name in ("README.md", "README.zh-CN.md", "README.zh-TW.md"):
         shutil.copy2(ROOT / name, stage / name)
     shutil.copytree(ROOT / "docs" / "images", stage / "docs" / "images")
+    shutil.copy2(ROOT / "docs" / "VALIDATION.md", stage / "docs" / "VALIDATION.md")
     lic = stage / "licenses"
     lic.mkdir()
     shutil.copy2(ROOT / "sigwm" / "vendor" / "bwm" / "LICENSE", lic / "blind_watermark-LICENSE.txt")

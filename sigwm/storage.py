@@ -96,7 +96,7 @@ def set_storage_mode(portable: bool) -> None:
 class Settings:
     mode: str = "feathered_texture"
     padding: int = 64
-    alpha: int = 96
+    alpha: int = 24
     feather: int = 48
     texture: int = 4
     remove_background: bool = True
@@ -109,6 +109,7 @@ class Settings:
     backup_dir: str = ""          # empty = data/backup
     language: str = ""            # empty = follow the system language
     password_fallback: str = ""   # only used when no OS keyring is available
+    settings_version: int = 2
 
     @classmethod
     def load(cls, path: Path) -> "Settings":
@@ -119,6 +120,12 @@ class Settings:
                 for k, v in data.items():
                     if hasattr(s, k):
                         setattr(s, k, v)
+                if data.get("settings_version", 1) < 2:
+                    # 1.0.4: the old default opacity 96 hid text under the carrier. Only an
+                    # untouched default is changed; a value the user picked is kept.
+                    if data.get("alpha", 96) == 96:
+                        s.alpha = 24
+                    s.settings_version = 2
             except (OSError, ValueError):
                 pass
         return s

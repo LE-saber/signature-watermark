@@ -302,7 +302,7 @@ class EmbedPage(QWidget):
         sliders.setVerticalSpacing(6)
         self.sliders = {}
         for i, (key, text, lo, hi, unit) in enumerate((
-                ("alpha", tr('透明度上限'), 16, 255, ""), ("feather", tr('邊緣羽化'), 4, 250, " px"),
+                ("alpha", tr('透明度上限'), 12, 255, ""), ("feather", tr('邊緣羽化'), 4, 250, " px"),
                 ("texture", tr('紋理強度'), 0, 20, ""), ("padding", tr('四周留白'), 16, 300, " px"),
                 ("background_threshold", tr('筆跡保留閾值'), 100, 250, ""))):
             box = QVBoxLayout()
@@ -532,7 +532,7 @@ class EmbedPage(QWidget):
             return
         password = self.get_password()
         if len(password) < 12:
-            self.toast(tr('請先在「設定」裏設定至少 12 個字元的水印密碼'))
+            self.toast(tr('請先在「設定」裏設定或隨機生成水印密碼'))
             return
         queue = [i for i, it in enumerate(self.items) if it.status in ("wait", "bad") and it.readable]
         if not queue:

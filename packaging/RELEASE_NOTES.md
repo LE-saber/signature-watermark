@@ -1,45 +1,46 @@
-## SigWatermark 1.0.3
+## SigWatermark 1.0.4
 
-Turn signature photos/scans on white or light paper into electronic signatures with white, translucent, feathered, or textured feathered carriers, then embed a traceable invisible ID.
+Cleaner signature extraction, less intrusive translucent carriers, improved tracing over printed text and tinted paper, and generated watermark passwords.
 
-### Background processing fix
+### Changes
 
-Previously, an opaque source image was placed over the selected carrier without removing its paper background. The original rectangle covered the translucent/feathered carrier, so changing the style did not produce the intended result.
+- Background removal now detects ruled/grid/form lines, edge clutter, shadows and paper texture, with rules intended to preserve crossing strokes, underlines and dots. Other handwriting still needs cropping out.
+- The default carrier opacity is 24/255 (about 9%), down from 96/255; the slider minimum is 12. Tracing rebuilds carrier opacity, compensates for paper color, and searches for the recorded ink shape when text obscures the usual ink-region detection.
+- Settings offers Generate and save on first launch, plus Generate and Copy. Passwords contain 24 random symbols in six groups separated by hyphens; user-entered passwords of at least 12 characters are still supported.
+- The watermark format, embedding core and matching thresholds are unchanged (`SIG-BLIND-WM-2`).
 
-- Integrate automatic paper-background removal directly into the desktop and CLI export pipelines; it is enabled by default.
-- Normalize light-paper tint and gradual illumination changes, preserve colored ink, and remove paper-colored fringes around strokes.
-- Preserve ink-only transparent PNGs while also detecting opaque paper regions inside PNGs with transparent corners.
-- Add an automatic-removal checkbox and ink-retention threshold. Raise the threshold to retain faint ink, or disable removal to keep an original design.
-- Use the same preparation for previews and actual exports. The top paper-color buttons change the preview scene only; the carrier style controls the output PNG.
-- Create the requested padding around tightly cropped ink so feathered edges have space to fade.
-- Requeue finished items when processing parameters change, allowing a new export without re-importing the image.
-- Apply camera EXIF orientation before processing, store preparation parameters in signing records, and translate the new controls into all nine UI languages.
+### Validation and limits
 
-The watermark format remains `SIG-BLIND-WM-2`, and existing records/images remain traceable. Background processing uses the existing NumPy/Pillow dependencies; no cloud service or additional model download is required.
+Seven synthetic background cases retained 98.63–100% of known ink. Junk pixels in the ruled/grid cases fell from 56.75%/79.30% to 0.14%/0.37%. On three identical JPEG pages with a signature over text (white, cream and light blue), 1.0.3 did not match; 1.0.4 matched all three. These sample results are not a general recovery rate.
+
+Processing speed varies: in a three-run comparison on a 2700×1140 plain-paper signature, median time increased from 0.981 s to 2.894 s because of the additional cleanup. See [validation methods, results and limits](https://github.com/LE-saber/signature-watermark/blob/v1.0.4/docs/VALIDATION.md).
+
+### Upgrade
+
+- Back up signing records, output PNGs and the original watermark password. Including the password in a backup requires encryption.
+- Legacy settings with opacity 96 migrate to 24, including a manually chosen value of exactly 96; other values are retained. Set 96 again after upgrading if needed.
+- Shape-based location needs the output PNG at its recorded path. Keep output images; direct watermark extraction can still be attempted without them.
+- Extract the entire archive into a fresh directory and check the active data location in Settings. Changing storage mode does not move data automatically.
 
 ### Downloads
 
 | Platform | Archive |
 | --- | --- |
-| Windows x64 | `SigWatermark-1.0.3-windows-x64.zip` |
-| macOS Apple Silicon | `SigWatermark-1.0.3-macos-arm64.zip` |
-| macOS Intel | `SigWatermark-1.0.3-macos-x64.zip` |
-| Linux x64 | `SigWatermark-1.0.3-linux-x64.tar.gz` |
+| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-windows-x64.zip) |
+| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-arm64.zip) |
+| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-x64.zip) |
+| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-linux-x64.tar.gz) |
 
-Extract the entire archive into a fresh directory. No separate Python installation is needed. Back up existing signing records and retain the watermark password when upgrading. All four archives are covered by `SHA256SUMS.txt`; Windows and macOS builds are unsigned, and macOS builds are not notarized.
-
-Automatic removal is designed for a cropped signature on white/light paper. Ruled lines, other handwriting, and complex photographic backgrounds may require cropping or manual cleanup. Existing isolated frozen-GUI checks remain required on all four platforms before publication.
+No separate Python installation is needed. Archives include an English quick-start guide, English/Simplified Chinese/Traditional Chinese READMEs and validation notes. Verify with `SHA256SUMS.txt`. Windows and macOS builds are unsigned; macOS builds are not notarized.
 
 ---
 
 ## 中文说明
 
-修复“选了半透明或羽化样式，导出后仍保留原图背景”的问题。之前程序把带纸张背景的原图直接叠在载体上；现在默认先去除纸张背景、提取笔迹，再生成所选载体并嵌入水印，预览和实际导出共用同一流程。
+- **提取更干净：** 增加横格线、方格线、表格线、照片边缘杂物和纸面纹理清理，尽量保留交叉笔画、下划线和点。旁边的其他手写内容仍需先裁掉。
+- **减少遮挡并改善溯源：** 默认载体不透明度从 96 降至 24/255（约 9%），滑块最低为 12；新增纸色补偿和签名压正文时的形状定位。
+- **密码设置：** 首次启动可一键随机生成并保存，设置页增加随机生成和复制。生成密码包含 24 个随机字符，以连字符分组；也可自行输入至少 12 个字符的密码。
+- **实测范围：** 七组合成去背景样本保留 98.63%～100% 的笔迹；三张白色、米黄、浅蓝纸的压正文 JPEG 对照图，旧版均未匹配，当前版均匹配。样本结果不代表通用恢复率。新增清理存在性能成本，不能保证所有图片更快，详细结果见验证文档。
+- **升级注意：** 备份记录、输出图片和原密码；包含密码的备份必须加密。旧设置中的 96 会改为 24（手动选为 96 也会迁移），需要时可重新设回。形状定位依赖记录路径下的输出 PNG，请保留输出图片。完整解压后在设置中检查数据目录，切换存储模式不会自动搬移数据。
 
-- 白纸、浅色纸上的签名照片与扫描图可直接导入；透明笔迹 PNG 保留原样。
-- 增加“自动去除原图背景”开关和“笔迹保留阈值”，淡笔迹可提高阈值。
-- 真正补足笔迹周围的留白，让羽化边缘有空间过渡；修改处理参数后会把已完成图片重新加入队列。
-- 自动校正相机方向、记录处理参数，新控件支持全部九种界面语言。
-- 保留 Windows DLL 隔离构建和四平台图形界面启动检查。
-
-请先裁切到签名区域。横格线、其他手写内容和复杂背景仍可能需要手动清理。升级请解压到新目录，通过备份恢复迁移数据，保留原水印密码；水印格式和旧图溯源兼容性不变。
+水印格式仍为 `SIG-BLIND-WM-2`。英文、简体中文、繁体中文 README 和验证文档随包提供。

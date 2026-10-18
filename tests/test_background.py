@@ -122,3 +122,35 @@ def test_transparent_corners_do_not_preserve_an_opaque_paper_rectangle():
     result = core.prepare_signature(image, core.CarrierParams())
     assert np.asarray(result.getchannel("A"))[:40].max() == 0
     assert np.asarray(result.getchannel("A"))[150, 80] == 255
+
+
+# ---------------------------------------------------------------- 1.0.4: hard backgrounds
+
+from .hard_backgrounds import CASES, score  # noqa: E402
+
+
+@pytest.mark.parametrize("name", sorted(CASES))
+def test_hard_backgrounds_keep_ink_and_drop_the_rest(name):
+    """Ruled/grid paper, form lines (also crossed by a black pen), a desk at the edge,
+    uneven light and recycled paper: the signature stays, the rest goes."""
+    img, gt = CASES[name]()
+    alpha = np.asarray(background.remove_paper(img.convert("RGBA")).getchannel("A"))
+    ink_kept, junk_kept = score(alpha, gt)
+    assert ink_kept >= 0.97, ink_kept
+    assert junk_kept <= 0.02, junk_kept
+
+
+def test_signer_underline_is_not_taken_for_a_ruled_line():
+    img, gt = CASES["ruled"]()
+    alpha = np.asarray(background.remove_paper(img.convert("RGBA")).getchannel("A"))
+    # the drawn underline runs from x=150 to 560 around y=285-300
+    assert (alpha[280:305, 200:500] > 128).sum() > 0.8 * gt[280:305, 200:500].sum()
+
+
+def test_tilted_rules_are_found():
+    img, gt = CASES["ruled"]()
+    tilted = img.rotate(6, Image.Resampling.BICUBIC, fillcolor=(250, 250, 246))
+    gt_t = np.asarray(Image.fromarray(gt.astype(np.uint8) * 255).rotate(6, Image.Resampling.NEAREST)) > 127
+    alpha = np.asarray(background.remove_paper(tilted.convert("RGBA")).getchannel("A"))
+    ink_kept, junk_kept = score(alpha, gt_t)
+    assert ink_kept >= 0.95 and junk_kept <= 0.03, (ink_kept, junk_kept)

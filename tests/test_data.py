@@ -78,3 +78,26 @@ def test_import_legacy(store, tmp_path):
     assert service.import_legacy(store, tmp_path / "out") == (1, 0)
     assert service.import_legacy(store, tmp_path / "out") == (0, 1)
     assert store.record_by_short("W12AB34C").format == "SIG-BLIND-WM-1"
+
+
+def test_generated_password_is_strong_and_readable():
+    seen = set()
+    for _ in range(50):
+        pw = secret.generate_password()
+        assert len(pw) == 29 and pw.count("-") == 5
+        assert not set(pw) & set("0O1lI")
+        core.password_seeds(pw)          # accepted as a watermark password
+        seen.add(pw)
+    assert len(seen) == 50
+
+
+def test_old_default_opacity_is_migrated(tmp_path):
+    import json
+    from sigwm.storage import Settings
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"alpha": 96, "mode": "feathered"}), encoding="utf-8")
+    assert Settings.load(path).alpha == 24
+    path.write_text(json.dumps({"alpha": 140}), encoding="utf-8")
+    assert Settings.load(path).alpha == 140          # a value the user picked is kept
+    path.write_text(json.dumps({"alpha": 96, "settings_version": 2}), encoding="utf-8")
+    assert Settings.load(path).alpha == 96

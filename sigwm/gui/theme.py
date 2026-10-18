@@ -102,6 +102,7 @@ QCheckBox, QRadioButton {{ spacing: 8px; }}
 #modeCard {{ border: 1px solid {t['line']}; border-radius: 7px; background: {t['surface']}; }}
 #modeCard[on="true"] {{ border: 2px solid {t['accent']}; }}
 #hitCard {{ border: 1px solid {t['line']}; border-radius: 7px; background: {t['surface']}; }}
+#notice {{ border: 1px solid {t['accent']}; background: {t['accent_soft']}; border-radius: 8px; }}
 #confirm {{ border: 1px solid {t['bad']}; background: {t['bad_soft']}; border-radius: 8px; }}
 #empty {{ border: 1px dashed {t['line']}; border-radius: 7px; color: {t['muted']}; }}
 QStatusBar {{ background: {t['chrome']}; border-top: 1px solid {t['line']}; }}

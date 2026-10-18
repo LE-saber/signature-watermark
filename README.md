@@ -11,18 +11,29 @@ Give each issued signature a separate ID and purpose, then check which issuance 
 
 ![Batch watermarking with a signature preview](docs/images/batch-watermark.png)
 
+## What changed in 1.0.4
+
+- Remove ruled/grid/form lines, edge clutter and paper texture while attempting to preserve crossing strokes, underlines and dots.
+- Reduce the default carrier opacity from 96 to 24/255 (about 9%); compensate for paper color during tracing and locate signatures that touch printed text.
+- Generate and save a random watermark password on first launch, with Generate and Copy controls in Settings.
+- Keep the `SIG-BLIND-WM-2` watermark format. Existing images still require their original password and records.
+
+![First-launch password setup](docs/images/password-setup.png)
+
+Back up records, outputs and the password before upgrading. Older settings with opacity 96 migrate to 24, including a manually selected value of exactly 96; other values are retained. Shape-based location needs the output PNG at its recorded path, so retain output images when cleaning data. See [validation results and limits](docs/VALIDATION.md), including the measured performance tradeoff.
+
 ## Download
 
 Choose a **portable application archive** from [Releases](https://github.com/LE-saber/signature-watermark/releases/latest). The automatically generated “Source code” downloads require a Python environment.
 
-| Platform | Version 1.0.3 | Launch after extraction |
+| Platform | Version 1.0.4 | Launch after extraction |
 | --- | --- | --- |
-| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
-| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-macos-arm64.zip) | `SigWatermark.app` |
-| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-macos-x64.zip) | `SigWatermark.app` |
-| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
+| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
+| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-arm64.zip) | `SigWatermark.app` |
+| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-x64.zip) | `SigWatermark.app` |
+| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
 
-No separate Python installation is needed. Extract the entire archive and keep all support files together. Every archive includes an English quick-start guide and all three README versions. Verify downloads with [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SHA256SUMS.txt).
+No separate Python installation is needed. Extract the entire archive and keep all support files together. Every archive includes an English quick-start guide and all three README versions. Verify downloads with [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SHA256SUMS.txt).
 
 Windows builds are unsigned. macOS builds are unsigned and not notarized; first launch may require approval in macOS security settings. Native macOS builds use macOS 15 runners. Linux builds use Ubuntu 22.04 and require a working desktop environment. On Debian/Ubuntu, install missing Qt/xcb runtime libraries with:
 
@@ -32,7 +43,7 @@ sudo apt-get install libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 lib
 
 ## Quick start
 
-1. Open the app and set a **watermark password of at least 12 characters** in Settings.
+1. Open the app and set the watermark password in Settings: click **Generate and save** to let the app create a strong one, or enter your own of **at least 12 characters**.
 2. Add signature photos/scans on white or light paper, or a folder, in **Batch watermark**. **Remove original background automatically** is enabled by default. Ink-only transparent PNGs are preserved.
 3. Choose a purpose and carrier style, preview the result, and generate watermarked PNGs. Raise **Ink retention threshold** for faint strokes, or turn off automatic removal to retain an original design. Each image receives a separate ID and signing record.
 4. Use those PNGs in your documents. To investigate one later, open **Signature tracing** and add the PDF, Word document, image, or scan. Use manual region selection if automatic detection misses the signature.
@@ -44,7 +55,7 @@ The README defaults to English. The application UI follows the system language a
 
 - Batch processing, file/folder drag and drop, purpose labels, custom output names, previews, and optional read-back self-checks.
 - Integrated paper-background removal, light-paper/shadow normalization, adjustable ink retention, and camera orientation handling.
-- Four replacement carriers: white, translucent, feathered, and feathered with subtle texture. Changing processing settings puts finished items back in the queue for a new export.
+- Four replacement carriers: white, translucent, feathered, and feathered with subtle texture. Changing processing settings puts finished items back in the queue for a new export. The default opacity is 24/255 (about 9 %), so text under the carrier stays readable; tracing compensates for tinted paper and finds signatures that touch printed text.
 - Tracing from PDF embedded images, Word `.docx`/`.docm` media, image files, photos, and scans, with size restoration and manual region selection.
 - Searchable local signing records with timestamps, source/output SHA-256 hashes, image geometry, and CSV export.
 - Selective `.swbak` backup/restore, optional AES-256 encryption, backup history, and reminders.
@@ -96,7 +107,7 @@ On Linux, use `./SigWatermark/SigWatermark`; on macOS, use `./SigWatermark.app/C
 
 ## Limitations
 
-- Automatic background removal is designed for cropped signatures on white/light paper. Crop to the signature first; ruled lines, other handwriting, or complex photographic backgrounds may need manual cleanup with the separate `tools/signature-remove-bg/` tool.
+- Automatic background removal is designed for cropped signatures on paper. Automatic cleanup targets ruled/grid paper, form lines and crossing strokes, desk/shadow edges, uneven light and paper texture; difficult inputs may still need manual cleanup. Other handwriting next to the signature is not removed; crop it out first.
 
 - Recovery depends on signal and alignment. Heavy compression, severe resizing, cropping, rotation, perspective changes, or low-quality printing/scanning may prevent a match. Some sample tests recover at 50% size after restoration; this is not a general guarantee.
 - Semi-transparent carriers are intended for white or light backgrounds. Photo tracing does not perform perspective correction.

@@ -95,6 +95,8 @@ class _Matcher:
         for i, r in enumerate(self.records):
             sizes.setdefault((r.width, r.height), []).append(i)
         self.sizes = sizes
+        self._alpha: dict[int, np.ndarray | None] = {}
+        self._ink: dict[int, np.ndarray | None] = {}
 
     def best(self, bits: np.ndarray, text: str, among: list[int] | None = None) -> Score:
         if not len(self.records):
@@ -110,6 +112,33 @@ class _Matcher:
         all_var[int(idx[k])] = -1
         runner = int(all_var.max()) if len(all_var) > 1 else 24
         return Score(rec, int(var[k]), int(eq[k].sum()), max(runner, 24), text == rec.short_id)
+
+    def alpha_map(self, i: int) -> np.ndarray | None:
+        """Carrier opacity for record i, rebuilt from its stored parameters (None: opaque or unknown)."""
+        if i not in self._alpha:
+            r = self.records[i]
+            p = r.params or {}
+            a = None
+            if r.format != "SIG-BLIND-WM-1" and "alpha" in p and r.width and r.height:
+                try:
+                    a = core.carrier_alpha(r.mode, r.width, r.height, int(p["alpha"]), int(p.get("feather", 48)))
+                except (TypeError, ValueError):
+                    a = None
+            self._alpha[i] = a
+        return self._alpha[i]
+
+    def try_on_paper(self, bgr: np.ndarray, i: int, paper: np.ndarray | None) -> Score:
+        """bgr is already at record i's size. Also try it corrected for tinted paper."""
+        best = self.try_image(bgr, None, [i])
+        a = self.alpha_map(i)
+        if a is None or a.shape != bgr.shape[:2] or _classify(best) == "match":
+            return best
+        if paper is None:
+            paper = core.paper_from_ring(bgr, a)
+        if core.paper_is_white(paper):
+            return best
+        s2 = self.try_image(core.correct_paper(bgr, a, paper), None, [i])
+        return s2 if s2.better(best) else best
 
     def try_image(self, img: Image.Image | np.ndarray, size=None, among=None) -> Score:
         best = Score()
@@ -142,25 +171,42 @@ def _direct(m: _Matcher, img: Image.Image) -> tuple[Score, bool]:
     w, h = img.size
     if w < 40 or h < 24:
         return best, False
+    opaque = img.mode not in ("RGBA", "LA", "PA") and "transparency" not in img.info
+    bgr0 = core._to_bgr(img, flatten=True) if opaque else None
     for (rw, rh), idx in m.sizes.items():
-        if (rw, rh) == (w, h) or abs((w / h) / (rw / rh) - 1) > 0.03:
+        if abs((w / h) / (rw / rh) - 1) > 0.03:
             continue
-        s2 = m.try_image(img, (rw, rh), idx)
-        if s2.better(best):
-            best, resized = s2, True
-            if _classify(best) == "match":
-                break
+        if (rw, rh) != (w, h):
+            s2 = m.try_image(img, (rw, rh), idx)
+            if s2.better(best):
+                best, resized = s2, True
+        if opaque and _classify(best) != "match":
+            # a screenshot or photo of the carrier on tinted paper
+            bgr = imgops.resize(bgr0, (rw, rh))
+            for i in idx:
+                s3 = m.try_on_paper(bgr, i, None)
+                if s3.better(best):
+                    best, resized = s3, (rw, rh) != (w, h)
+        if _classify(best) == "match":
+            break
     return best, resized
 
 
-def ink_blobs(bgr: np.ndarray, max_blobs: int = 8) -> list[tuple[int, int, int, int]]:
-    """Bounding boxes of handwriting-like ink regions, largest first."""
+def ink_mask(bgr: np.ndarray) -> np.ndarray:
+    """Pixels darker than their surroundings: handwriting, printed text, lines."""
     gray = imgops.gray(bgr)
     h, w = gray.shape
     k = max(15, (min(h, w) // 40) | 1)
     # adaptive threshold: darker than the local mean by more than 18 levels
     ink = gray < imgops.box_mean(imgops.box_mean(gray, 3), k) - 18
-    ink = imgops.dilate(imgops.erode(ink, 2, 2), 2, 2)          # opening removes specks
+    return imgops.dilate(imgops.erode(ink, 2, 2), 2, 2)          # opening removes specks
+
+
+def ink_blobs(bgr: np.ndarray, max_blobs: int = 8, ink: np.ndarray | None = None) -> list[tuple[int, int, int, int]]:
+    """Bounding boxes of handwriting-like ink regions, largest first."""
+    if ink is None:
+        ink = ink_mask(bgr)
+    h, w = ink.shape
     kx, ky = max(5, w // 60), max(3, h // 120)
     merged = imgops.dilate(ink, ky, kx)
     boxes = []
@@ -194,7 +240,113 @@ def _crop_padded(bgr: np.ndarray, x0: float, y0: float, x1: float, y1: float) ->
     return out
 
 
-def locate(m: _Matcher, bgr: np.ndarray, box: tuple[int, int, int, int]) -> tuple[Score, tuple]:
+def _record_ink(m: _Matcher, i: int) -> np.ndarray | None:
+    """Ink shape of record i (opaque pixels of its output PNG), cropped to the signature box."""
+    if i in m._ink:
+        return m._ink[i]
+    r, ink = m.records[i], None
+    try:
+        if r.out_path and r.sig_bbox[2] > r.sig_bbox[0]:
+            with Image.open(r.out_path) as im:
+                if im.size == (r.width, r.height) and "A" in im.getbands():
+                    a = np.asarray(im.getchannel("A"))
+                    x0, y0, x1, y1 = r.sig_bbox
+                    ink = a[y0:y1, x0:x1] >= 250
+                    if ink.sum() < 50:
+                        ink = None
+    except OSError:
+        ink = None
+    m._ink[i] = ink
+    return ink
+
+
+def find_by_shape(m: _Matcher, ink: np.ndarray, limit_px: int = 700) -> list[tuple[float, int, tuple[int, int, int, int]]]:
+    """Find each record's signature on a page by matching its ink shape.
+
+    Works when the signature touches printed text, where connected-ink blobs merge
+    the two. Multi-scale normalised cross-correlation via FFT on a reduced page.
+    Returns (score, record index, ink box in page pixels), best first.
+    """
+    h, w = ink.shape
+    f = min(1.0, limit_px / max(h, w))
+    small = np.asarray(Image.fromarray(ink.astype(np.uint8) * 255).resize(
+        (max(1, int(w * f)), max(1, int(h * f))), Image.Resampling.BOX), dtype=np.float64) / 255
+    small = imgops.box_mean(small, 3)          # tolerate the gap between scale steps
+    H, W = small.shape
+    page_f = np.fft.rfft2(small)
+    out = []
+    for i in range(len(m.records)):
+        tmpl = _record_ink(m, i)
+        if tmpl is None:
+            continue
+        th0, tw0 = tmpl.shape
+        best = (0.0, None)
+        # a tiny template fits inside any letter, so start at a plausible signature width
+        scale = max(40 / tw0, 0.08 * W / tw0)
+        while tw0 * scale <= 0.95 * W and th0 * scale <= 0.95 * H:
+            tw, th = max(4, int(round(tw0 * scale))), max(4, int(round(th0 * scale)))
+            t = np.asarray(Image.fromarray(tmpl.astype(np.uint8) * 255).resize((tw, th), Image.Resampling.BOX),
+                           dtype=np.float64) / 255
+            t = imgops.box_mean(t, 3)
+            t_sum = float(t.sum())
+            if t_sum > 1:
+                pad = np.zeros_like(small)
+                pad[:th, :tw] = t
+                corr = np.fft.irfft2(page_f * np.conj(np.fft.rfft2(pad)), s=small.shape)
+                density = imgops.box_sum(small, th, tw) / (th * tw)      # ink density under the window
+                # box_sum is centred; shift so it lines up with the top-left anchor of corr
+                density = np.roll(np.roll(density, -(th // 2), axis=0), -(tw // 2), axis=1)
+                # share of the template's ink found there, minus what dense text would give by chance
+                score = corr / t_sum - density
+                score[H - th + 1:, :] = 0
+                score[:, W - tw + 1:] = 0
+                k = int(score.argmax())
+                y, x = divmod(k, W)
+                if score.flat[k] > best[0]:
+                    best = (float(score.flat[k]), (x / f, y / f, (x + tw) / f, (y + th) / f))
+            scale *= 1.07
+        if best[1] is not None:
+            out.append((best[0], i, tuple(int(round(v)) for v in best[1])))
+    out.sort(reverse=True)
+    return out
+
+
+def refine_by_shape(m: _Matcher, ink: np.ndarray, i: int, box: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+    """Full-resolution shape match around a coarse box (+-30 px, scale +-4 %)."""
+    tmpl = _record_ink(m, i)
+    if tmpl is None:
+        return box
+    x0, y0, x1, y1 = box
+    bw, bh = x1 - x0, y1 - y0
+    margin = max(30, int(0.04 * bw))
+    H, W = ink.shape
+    X0, Y0 = max(0, x0 - margin), max(0, y0 - margin)
+    X1, Y1 = min(W, x1 + 2 * margin), min(H, y1 + 2 * margin)
+    region = imgops.box_mean(ink[Y0:Y1, X0:X1].astype(np.float64), 3)
+    rh, rw = region.shape
+    reg_f = np.fft.rfft2(region)
+    best = (-1.0, box)
+    for ds in np.linspace(0.96, 1.04, 9):
+        tw, th = int(round(bw * ds)), int(round(bh * ds))
+        if tw < 8 or th < 8 or tw >= rw or th >= rh:
+            continue
+        t = np.asarray(Image.fromarray(tmpl.astype(np.uint8) * 255).resize((tw, th), Image.Resampling.BOX),
+                       dtype=np.float64) / 255
+        t = imgops.box_mean(t, 3)
+        pad = np.zeros_like(region)
+        pad[:th, :tw] = t
+        corr = np.fft.irfft2(reg_f * np.conj(np.fft.rfft2(pad)), s=region.shape) / max(t.sum(), 1e-6)
+        corr[rh - th + 1:, :] = -1
+        corr[:, rw - tw + 1:] = -1
+        k = int(corr.argmax())
+        y, x = divmod(k, rw)
+        if corr.flat[k] > best[0]:
+            best = (float(corr.flat[k]), (X0 + x, Y0 + y, X0 + x + tw, Y0 + y + th))
+    return best[1]
+
+
+def locate(m: _Matcher, bgr: np.ndarray, box: tuple[int, int, int, int],
+           only: list[int] | None = None) -> tuple[Score, tuple]:
     """Map an ink box onto each record's carrier geometry and extract.
 
     The mark lives in 8x8-pixel blocks of the carrier, so a 1-2 px misalignment
@@ -205,14 +357,21 @@ def locate(m: _Matcher, bgr: np.ndarray, box: tuple[int, int, int, int]) -> tupl
     bw, bh = bx1 - bx0, by1 - by0
     best, best_box = Score(), box
 
+    paper: dict[int, np.ndarray | None] = {}
+
     def attempt(i, r, s, dx, dy):
         cx0 = bx0 - r.sig_bbox[0] * s + dx * s
         cy0 = by0 - r.sig_bbox[1] * s + dy * s
-        crop = _crop_padded(bgr, cx0, cy0, cx0 + r.width * s, cy0 + r.height * s)
-        crop = imgops.resize(crop, (r.width, r.height))
-        return m.try_image(crop, None, [i]), (int(cx0), int(cy0), int(cx0 + r.width * s), int(cy0 + r.height * s))
+        cbox = (cx0, cy0, cx0 + r.width * s, cy0 + r.height * s)
+        crop = imgops.resize(_crop_padded(bgr, *cbox), (r.width, r.height))
+        if i not in paper:
+            # paper colour from the page just outside the carrier
+            paper[i] = core.paper_from_surroundings(bgr, cbox, 0.06 * r.width * s)
+        return m.try_on_paper(crop, i, paper[i]), tuple(int(v) for v in cbox)
 
     for i, r in enumerate(m.records):
+        if only is not None and i not in only:
+            continue
         sx0, sy0, sx1, sy1 = r.sig_bbox
         sw, sh = sx1 - sx0, sy1 - sy0
         if sw <= 0 or sh <= 0 or abs((bw / bh) / (sw / sh) - 1) > 0.25:
@@ -252,17 +411,40 @@ def _scan_large(m: _Matcher, img: Image.Image, page_no: int, page: Page, offset=
                 progress: Progress | None = None) -> list[Hit]:
     """Locate signatures inside a big image (scan / photo / rendered page)."""
     bgr = np.ascontiguousarray(np.asarray(core.flatten_on_white(img))[:, :, ::-1])
-    hits = []
-    for box in ink_blobs(bgr):
+    ink = ink_mask(bgr)
+    k = page.scale * src_scale
+
+    def make_hit(box, sc, cbox):
+        kind = _classify(sc)
+        pb = tuple(int(v * k + o) for v, o in zip(box, (*offset, *offset)))
+        crop = Image.fromarray(np.ascontiguousarray(_crop_padded(bgr, *(cbox if kind != "none" else box))[:, :, ::-1]))
+        return Hit(page_no, pb, kind, sc.record if kind != "none" else None, sc.total, crop=crop)
+
+    found = []
+    for box in ink_blobs(bgr, ink=ink):
         if progress:
             progress(tr('對比簽發記錄'))
         sc, cbox = locate(m, bgr, box)
-        kind = _classify(sc)
-        k = page.scale * src_scale
-        pb = tuple(int(v * k + o) for v, o in zip(box, (*offset, *offset)))
-        crop = Image.fromarray(np.ascontiguousarray(_crop_padded(bgr, *(cbox if kind != "none" else box))[:, :, ::-1]))
-        hits.append(Hit(page_no, pb, kind, sc.record if kind != "none" else None, sc.total, crop=crop))
-    return hits
+        found.append((box, sc, cbox))
+    if not any(_classify(sc) == "match" for _, sc, _ in found):
+        # a signature touching printed text merges into one blob with it: find it by shape
+        if progress:
+            progress(tr('按簽名形狀定位'))
+        for score, i, box in find_by_shape(m, ink)[:5]:
+            if score < 0.12:
+                break
+            box = refine_by_shape(m, ink, i, box)
+            sc, cbox = locate(m, bgr, box, only=[i])
+            if _classify(sc) != "none":
+                # drop blob results that cover the same place
+                found = [f for f in found if not _overlaps(f[0], box)]
+                found.append((box, sc, cbox))
+                break
+    return [make_hit(box, sc, cbox) for box, sc, cbox in found]
+
+
+def _overlaps(a, b) -> bool:
+    return min(a[2], b[2]) > max(a[0], b[0]) and min(a[3], b[3]) > max(a[1], b[1])
 
 
 def _note(hit: Hit, resized: bool = False, located: bool = False) -> str:

@@ -73,3 +73,30 @@ def test_resized_signature_image(signed, tmp_path):
     small.save(tmp_path / "s.png")
     res = trace.analyze(store, PASSWORD, tmp_path / "s.png")
     assert res.hits and res.hits[0].kind == "match" and res.hits[0].record.id == outs[0].record.id
+
+
+def _text_page(paper, sig, scale, path, quality=85):
+    from PIL import ImageFont
+    font = ImageFont.load_default(size=30) if hasattr(ImageFont, "load_default") else None
+    page = Image.new("RGB", (1700, 2200), paper)
+    d = ImageDraw.Draw(page)
+    for i, y in enumerate(range(150, 1900, 46)):
+        d.text((150, y), "Clause %d. The parties agree to the terms and conditions." % i, fill=(25, 25, 25), font=font)
+    s = sig.resize((int(sig.width * scale), int(sig.height * scale)), Image.Resampling.LANCZOS)
+    page.paste(s, (500, 1500), s)        # lies over several lines of text
+    page.save(path, quality=quality)
+    return path
+
+
+@pytest.mark.parametrize("paper", [(255, 255, 255), (243, 233, 210), (222, 233, 247)])
+def test_low_opacity_signature_over_text_on_tinted_paper(store, tmp_path, paper):
+    """1.0.4: a 9 % carrier lets the text show through; the mark still traces on white,
+    cream and blue paper even when the signature touches printed text."""
+    from sigwm import service
+    from .conftest import FIXTURE
+    o = service.embed_file(store, FIXTURE, PASSWORD, core.CarrierParams(mode="feathered_texture"), "t")
+    assert o.ok and o.record.params["alpha"] == 24
+    page = _text_page(paper, Image.open(o.out_path), 1.0, tmp_path / "p.jpg")
+    res = trace.analyze(store, PASSWORD, page)
+    assert any(h.kind == "match" and h.record.id == o.record.id for h in res.hits), \
+        [(h.kind, h.bits) for h in res.hits]

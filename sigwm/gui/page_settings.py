@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QFileDialog, QGridLayout, QHBoxLayout, QLineEdit,
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLineEdit,
                                QPushButton, QRadioButton, QScrollArea, QSpinBox, QVBoxLayout, QWidget)
 
 from .. import secret, service, storage
@@ -52,6 +52,26 @@ class SettingsPage(QWidget):
         lg_panel.bl.addWidget(self.lang_hint)
         col.addWidget(lg_panel)
 
+        # First run: offer a generated password instead of making the user invent one.
+        self.first_run = QFrame()
+        self.first_run.setObjectName("notice")
+        fl = QVBoxLayout(self.first_run)
+        fl.setContentsMargins(14, 12, 14, 12)
+        fl.addWidget(label(tr('還沒有水印密碼'), bold=True))
+        fl.addWidget(label(tr('可以讓程式隨機生成一個高強度密碼並保存，也可以自己輸入至少 12 個字元的密碼。'), muted=True, wrap=True))
+        frow = QHBoxLayout()
+        gen_save = QPushButton(tr('隨機生成並保存（推薦）'))
+        gen_save.setObjectName("primary")
+        gen_save.clicked.connect(self._generate_and_save)
+        own = QPushButton(tr('自己輸入'))
+        own.clicked.connect(lambda: (self.first_run.hide(), self.pw.setFocus()))
+        frow.addWidget(gen_save)
+        frow.addWidget(own)
+        frow.addStretch(1)
+        fl.addLayout(frow)
+        col.insertWidget(0, self.first_run)
+        self.first_run.setVisible(len(secret.get_password(store)) < 12)
+
         pw = Panel(tr('水印密碼'))
         pw.bl.addWidget(label(tr('密碼決定了水印的打亂方式，提取和溯源時必須用同一個密碼。至少 12 個字元。換電腦時請用備份帶走，或記在安全的地方。'), muted=True, wrap=True))
         row = QHBoxLayout()
@@ -70,6 +90,13 @@ class SettingsPage(QWidget):
         save = QPushButton(tr('儲存密碼'))
         save.clicked.connect(self._save_pw)
         brow.addWidget(save)
+        gen = QPushButton(tr('隨機生成'))
+        gen.clicked.connect(self._generate)
+        brow.addWidget(gen)
+        copy = QPushButton(tr('複製'))
+        copy.clicked.connect(self._copy)
+        brow.addWidget(copy)
+        self.show_btn = show
         legacy = secret.legacy_env_password(storage.program_dir())
         if legacy:
             imp = QPushButton(tr('使用舊版 .env 裏的密碼'))
@@ -150,6 +177,26 @@ class SettingsPage(QWidget):
         else:
             self.toast(tr('無法自動重新啟動，請手動關閉後再打開'))
 
+    def _generate(self):
+        if secret.get_password(self.store) and self.store.record_count():
+            self.pw_hint.setText(tr('注意：已有的簽發記錄是用舊密碼嵌入的，換密碼後這些圖片將無法提取。如果只是誤改，請改回原密碼。'))
+        self.pw.setText(secret.generate_password())
+        self.show_btn.setChecked(True)
+        self.toast(tr('已生成隨機密碼，點「儲存密碼」後生效'))
+
+    def _generate_and_save(self):
+        self.pw.setText(secret.generate_password())
+        self.show_btn.setChecked(True)
+        self._save_pw()
+        self.first_run.hide()
+        self.pw_hint.setText(tr('密碼已隨機生成並保存。請在「備份與恢復」做一次加密備份並勾選「同時備份水印密碼」，或把密碼抄在安全的地方；丟了密碼就無法再溯源。'))
+
+    def _copy(self):
+        from PySide6.QtWidgets import QApplication
+        if self.pw.text():
+            QApplication.clipboard().setText(self.pw.text())
+            self.toast(tr('已複製到剪貼簿'))
+
     def _check(self):
         v = self.pw.text()
         if len(v) >= 12:
@@ -168,6 +215,7 @@ class SettingsPage(QWidget):
         if old and old != v and self.store.record_count():
             self.pw_hint.setText(tr('注意：已有的簽發記錄是用舊密碼嵌入的，換密碼後這些圖片將無法提取。如果只是誤改，請改回原密碼。'))
         where = secret.set_password(self.store, v)
+        self.first_run.hide()
         self.toast(tr('密碼已存入系統鑰匙串') if where == "keyring" else tr('密碼已存入資料目錄'))
         self.password_changed.emit()
 
