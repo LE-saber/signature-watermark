@@ -5,7 +5,7 @@
 [![Build](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml/badge.svg)](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/LE-saber/signature-watermark)](https://github.com/LE-saber/signature-watermark/releases/latest)
 
-A portable desktop app that embeds invisible IDs in signature images and traces them back to local signing records in PDF, Word documents, images, and scans.
+A portable desktop app that turns signature photos into electronic signatures with translucent or feathered backgrounds, embeds invisible IDs, and traces signatures in PDF, Word documents, images, and scans.
 
 Give each issued signature a separate ID and purpose, then check which issuance a signature came from when it appears in another document. Processing and signing records stay on your computer.
 
@@ -15,14 +15,14 @@ Give each issued signature a separate ID and purpose, then check which issuance 
 
 Choose a **portable application archive** from [Releases](https://github.com/LE-saber/signature-watermark/releases/latest). The automatically generated “Source code” downloads require a Python environment.
 
-| Platform | Version 1.0.2 | Launch after extraction |
+| Platform | Version 1.0.3 | Launch after extraction |
 | --- | --- | --- |
-| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
-| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-macos-arm64.zip) | `SigWatermark.app` |
-| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-macos-x64.zip) | `SigWatermark.app` |
-| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
+| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
+| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-macos-arm64.zip) | `SigWatermark.app` |
+| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-macos-x64.zip) | `SigWatermark.app` |
+| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
 
-No separate Python installation is needed. Extract the entire archive and keep all support files together. Every archive includes an English quick-start guide and all three README versions. Verify downloads with [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SHA256SUMS.txt).
+No separate Python installation is needed. Extract the entire archive and keep all support files together. Every archive includes an English quick-start guide and all three README versions. Verify downloads with [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SHA256SUMS.txt).
 
 Windows builds are unsigned. macOS builds are unsigned and not notarized; first launch may require approval in macOS security settings. Native macOS builds use macOS 15 runners. Linux builds use Ubuntu 22.04 and require a working desktop environment. On Debian/Ubuntu, install missing Qt/xcb runtime libraries with:
 
@@ -33,8 +33,8 @@ sudo apt-get install libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 lib
 ## Quick start
 
 1. Open the app and set a **watermark password of at least 12 characters** in Settings.
-2. Add signature images or a folder in **Batch watermark**. Transparent PNGs work best. Scans can first be prepared with the separate `tools/signature-remove-bg/` tool.
-3. Choose a purpose and carrier style, preview the result, and generate watermarked PNGs. Each image receives a separate ID and signing record.
+2. Add signature photos/scans on white or light paper, or a folder, in **Batch watermark**. **Remove original background automatically** is enabled by default. Ink-only transparent PNGs are preserved.
+3. Choose a purpose and carrier style, preview the result, and generate watermarked PNGs. Raise **Ink retention threshold** for faint strokes, or turn off automatic removal to retain an original design. Each image receives a separate ID and signing record.
 4. Use those PNGs in your documents. To investigate one later, open **Signature tracing** and add the PDF, Word document, image, or scan. Use manual region selection if automatic detection misses the signature.
 5. Back up signing records and the watermark password before moving computers or cleaning files.
 
@@ -43,7 +43,8 @@ The README defaults to English. The application UI follows the system language a
 ## Features
 
 - Batch processing, file/folder drag and drop, purpose labels, custom output names, previews, and optional read-back self-checks.
-- Four carriers: white, translucent, feathered, and feathered with subtle texture.
+- Integrated paper-background removal, light-paper/shadow normalization, adjustable ink retention, and camera orientation handling.
+- Four replacement carriers: white, translucent, feathered, and feathered with subtle texture. Changing processing settings puts finished items back in the queue for a new export.
 - Tracing from PDF embedded images, Word `.docx`/`.docm` media, image files, photos, and scans, with size restoration and manual region selection.
 - Searchable local signing records with timestamps, source/output SHA-256 hashes, image geometry, and CSV export.
 - Selective `.swbak` backup/restore, optional AES-256 encryption, backup history, and reminders.
@@ -51,6 +52,8 @@ The README defaults to English. The application UI follows the system language a
 - Desktop GUI and command-line entry points; the main app requires no server.
 
 ## How it works
+
+Paper is removed before carrier generation. Preview and export use the same preparation; tight crops receive the requested padding around their ink. The paper-color buttons at the top change the preview scene only; the carrier styles determine the exported PNG.
 
 Each issued image carries a short ID such as `W1234ABC`, encoded as 63 watermark bits. The purpose and other metadata live in SQLite and are looked up by ID.
 
@@ -87,9 +90,13 @@ Configure the password in the GUI first. Windows PowerShell examples, from the e
 
 For startup diagnostics, run the executable with `--gui-smoke-test <empty-folder>`; it writes `gui-smoke.json` and exits after checking all six pages.
 
+For faint ink, add `--background-threshold 245`. Use `--no-remove-background` to preserve an original background, or `--remove-background` to explicitly enable removal.
+
 On Linux, use `./SigWatermark/SigWatermark`; on macOS, use `./SigWatermark.app/Contents/MacOS/SigWatermark` with the same arguments. `--data-dir` must precede the subcommand. Available modes: `white`, `translucent`, `feathered`, `feathered_texture`.
 
 ## Limitations
+
+- Automatic background removal is designed for cropped signatures on white/light paper. Crop to the signature first; ruled lines, other handwriting, or complex photographic backgrounds may need manual cleanup with the separate `tools/signature-remove-bg/` tool.
 
 - Recovery depends on signal and alignment. Heavy compression, severe resizing, cropping, rotation, perspective changes, or low-quality printing/scanning may prevent a match. Some sample tests recover at 50% size after restoration; this is not a general guarantee.
 - Semi-transparent carriers are intended for white or light backgrounds. Photo tracing does not perform perspective correction.
@@ -121,6 +128,7 @@ UI translations are maintained in `tools/i18n/table*.py`. After changing UI stri
 | Path | Responsibility |
 | --- | --- |
 | `app.py` | GUI/CLI entry point |
+| `sigwm/background.py` | Paper-background removal using NumPy and Pillow |
 | `sigwm/core.py`, `sigwm/vendor/bwm/` | Carriers, embedding, extraction, robustness checks |
 | `sigwm/imgops.py`, `sigwm/trace.py` | Image operations, document parsing, detection, matching |
 | `sigwm/service.py`, `sigwm/storage.py` | Batch processing, settings, SQLite, tracked files |

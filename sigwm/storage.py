@@ -99,6 +99,8 @@ class Settings:
     alpha: int = 96
     feather: int = 48
     texture: int = 4
+    remove_background: bool = True
+    background_threshold: int = 220
     purpose: str = "signature-use"
     output_dir: str = ""          # empty = data/out
     naming: str = "SIG-{date}-{short}"

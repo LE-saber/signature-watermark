@@ -5,7 +5,7 @@
 [![构建](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml/badge.svg)](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml)
 [![版本](https://img.shields.io/github/v/release/LE-saber/signature-watermark)](https://github.com/LE-saber/signature-watermark/releases/latest)
 
-给签名图片嵌入隐形 ID，并从 PDF、Word、图片和扫描件中追查签发记录的便携桌面工具。
+把签名照片处理为半透明、羽化等样式的电子签名，嵌入隐形 ID，并从 PDF、Word、图片和扫描件追查签发记录的便携桌面工具。
 
 每次签发使用不同的 ID 和用途，日后发现签名出现在其他文件中，就可以尝试追查对应的签发记录。主程序的图像处理和记录保存在本机。
 
@@ -15,14 +15,14 @@
 
 从 [Releases](https://github.com/LE-saber/signature-watermark/releases/latest) 下载**便携应用压缩包**。GitHub 自动生成的 “Source code” 是源码包，需要自行配置 Python 环境。
 
-| 平台 | 1.0.2 版本 | 解压后启动 |
+| 平台 | 1.0.3 版本 | 解压后启动 |
 | --- | --- | --- |
-| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
-| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-macos-arm64.zip) | `SigWatermark.app` |
-| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-macos-x64.zip) | `SigWatermark.app` |
-| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
+| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
+| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-macos-arm64.zip) | `SigWatermark.app` |
+| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-macos-x64.zip) | `SigWatermark.app` |
+| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SigWatermark-1.0.3-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
 
-无需另外安装 Python。请完整解压，保留程序与配套文件。每个压缩包均附带英文快速说明和三种语言的 README。校验值见 [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SHA256SUMS.txt)。
+无需另外安装 Python。请完整解压，保留程序与配套文件。每个压缩包均附带英文快速说明和三种语言的 README。校验值见 [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.3/SHA256SUMS.txt)。
 
 Windows 包未代码签名；macOS 包未签名、公证，首次启动可能需要在系统安全设置中批准。macOS 包在 macOS 15 原生环境构建。Linux 包在 Ubuntu 22.04 构建，需要桌面环境。Debian/Ubuntu 如缺少 Qt/xcb 运行库，可安装：
 
@@ -33,8 +33,8 @@ sudo apt-get install libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 lib
 ## 快速开始
 
 1. 打开程序，在“设置”中设置**至少 12 个字符的水印密码**。
-2. 在“批量加水印”中添加图片或文件夹，优先使用透明底 PNG。照片或扫描件可先用独立的 `tools/signature-remove-bg/` 工具去背景。
-3. 填写用途，选择载体样式，预览并生成水印 PNG。每张图片都有独立 ID 和签发记录。
+2. 在“批量加水印”中添加白纸、浅色纸上的签名照片、扫描图或文件夹。“自动去除原图背景”默认开启，已有透明笔迹 PNG 保留原样。
+3. 填写用途，选择载体样式，预览并生成水印 PNG。浅色笔迹可提高“笔迹保留阈值”；需要保留原设计时可关闭自动去背景。每张图片都有独立 ID 和签发记录。
 4. 将生成的 PNG 用于文件。日后在“签名溯源”中添加 PDF、Word、图片或扫描件进行查询；自动检测不准时可手动框选签名区域。
 5. 更换电脑或清理文件前，备份签发记录和水印密码。
 
@@ -43,7 +43,8 @@ sudo apt-get install libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 lib
 ## 功能
 
 - 批量处理、拖入文件或文件夹、用途标签、自定义输出名称、预览和可选的回提自检。
-- 四种载体：白底、半透明、羽化、羽化加淡纹理。
+- 内置去纸张背景、浅色纸和渐变阴影校正、笔迹保留阈值调节、相机方向校正。
+- 四种替换载体：白底、半透明、羽化、羽化加淡纹理。修改处理参数后，已完成图片会重新进入队列，便于再次导出。
 - 从 PDF 内嵌图片、Word `.docx`/`.docm` 媒体图片、普通图片、照片和扫描件中溯源，支持尺寸恢复与手动选区。
 - 本地签发记录搜索、时间记录、源文件和输出文件的 SHA-256、图像几何信息及 CSV 导出。
 - `.swbak` 选择性备份恢复、可选 AES-256 加密、备份历史和提醒。
@@ -51,6 +52,8 @@ sudo apt-get install libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 lib
 - 图形界面和命令行；主程序无需服务器。
 
 ## 实现原理
+
+先提取笔迹，再生成载体。预览和导出使用相同的预处理流程，紧贴笔迹的裁剪图也会补足所选留白。顶部的纸张按钮只切换预览底色，导出 PNG 的背景由载体样式决定。
 
 图片只携带类似 `W1234ABC` 的短 ID，编码后为 63 位水印。用途等完整信息保存在 SQLite，通过 ID 关联查询。
 
@@ -87,9 +90,13 @@ sudo apt-get install libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 lib
 
 启动诊断可运行程序并附加 `--gui-smoke-test <空文件夹>`；程序检查六个页面后写入 `gui-smoke.json` 并退出。
 
+浅色笔迹可增加 `--background-threshold 245`。`--no-remove-background` 保留原背景，`--remove-background` 显式开启去背景。
+
 Linux 使用 `./SigWatermark/SigWatermark`，macOS 使用 `./SigWatermark.app/Contents/MacOS/SigWatermark`，参数相同。`--data-dir` 必须放在子命令之前。模式可选 `white`、`translucent`、`feathered`、`feathered_texture`。
 
 ## 使用限制
+
+- 自动去背景适用于白纸或浅色纸上的局部签名图。请先裁切到签名区域；横格线、其他手写内容和复杂照片背景可能需要用独立的 `tools/signature-remove-bg/` 工具手动清理。
 
 - 恢复依赖水印信号和对齐。强压缩、大幅缩放、裁剪、旋转、透视变形及低质量打印扫描都可能导致失败。部分样本缩小到 50% 后恢复尺寸仍能提取，不代表所有图片都能达到相同效果。
 - 半透明载体适合白色或浅色背景；照片溯源未做透视校正。
@@ -121,6 +128,7 @@ PyInstaller 只能构建当前系统与架构。`packaging/build.py` 会重建 `
 | 路径 | 职责 |
 | --- | --- |
 | `app.py` | 图形界面、命令行入口 |
+| `sigwm/background.py` | 使用 NumPy、Pillow 去除纸张背景 |
 | `sigwm/core.py`、`sigwm/vendor/bwm/` | 载体、嵌入、提取、鲁棒性检查 |
 | `sigwm/imgops.py`、`sigwm/trace.py` | 图像运算、文件解析、定位和匹配 |
 | `sigwm/service.py`、`sigwm/storage.py` | 批处理、设置、SQLite 和文件追踪 |

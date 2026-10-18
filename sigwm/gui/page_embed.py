@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (QCheckBox, QFileDialog, QFrame, QGridLayout, QHBo
                                QListWidget, QListWidgetItem, QPushButton, QSizePolicy, QSlider, QSplitter,
                                QVBoxLayout, QWidget, QScrollArea)
 
-from .. import core, service
+from .. import background, core, service
 from ..storage import Store
 from . import theme
 from .widgets import Chip, DropZone, Panel, PathPicker, Segmented, label, pil_to_pixmap, start_job
@@ -34,6 +34,9 @@ class Item:
     out: str = ""
     size: tuple[int, int] = (0, 0)
     opaque: bool = False
+    readable: bool = False
+    preparation: tuple[bool, int] | None = None
+    background_removed: bool = False
     thumb: Image.Image | None = None
     small: Image.Image | None = None  # downscaled RGBA for previews
     scale: float = 1.0
@@ -94,17 +97,39 @@ def make_thumb(img: Image.Image, w: int = 152, h: int = 60) -> Image.Image:
     return bg
 
 
-def load_item(path: Path) -> Item:
+def prepare_item(it: Item, p: core.CarrierParams, source: Image.Image | None = None) -> None:
+    key = (p.remove_background, p.background_threshold)
+    if not it.readable or it.preparation == key:
+        return
+    it.preparation = key
+    it.small = it.thumb = None
+    try:
+        if source is None:
+            source, _ = core.load_signature(it.path)
+        img = core.prepare_signature(source, p)
+        if img.getchannel("A").getbbox() is None:
+            raise core.WatermarkError(tr('圖片沒有可見像素'))
+        it.scale = min(1.0, PREVIEW_MAX / max(img.width, 1))
+        it.small = img if it.scale == 1.0 else img.resize(
+            (int(img.width * it.scale), max(1, int(img.height * it.scale))), Image.Resampling.LANCZOS)
+        it.thumb = make_thumb(it.small)
+        it.background_removed = it.opaque and p.remove_background
+        it.error = ""
+        if it.status == "bad":
+            it.status = "wait"
+    except core.WatermarkError as exc:
+        it.error = str(exc)
+        it.status = "bad"
+
+
+def load_item(path: Path, params: core.CarrierParams | None = None) -> Item:
     it = Item(path)
     try:
-        img, warns = core.load_signature(path)
+        img, _ = core.load_signature(path)
         it.size = img.size
-        it.opaque = bool(warns)
-        it.scale = min(1.0, PREVIEW_MAX / max(img.width, 1))
-        it.small = img if it.scale == 1.0 else img.resize((int(img.width * it.scale), int(img.height * it.scale)), Image.Resampling.LANCZOS)
-        it.thumb = make_thumb(it.small)
-        if img.getchannel("A").getbbox() is None:
-            it.error = tr('圖片沒有可見像素')
+        it.opaque = background.has_paper_background(img)
+        it.readable = True
+        prepare_item(it, params or core.CarrierParams(), img)
     except core.WatermarkError as exc:
         it.error = str(exc)
     return it
@@ -146,6 +171,10 @@ class FileRow(QWidget):
         self.update_from(item)
 
     def update_from(self, it: Item):
+        if it.thumb:
+            self.thumb.setPixmap(pil_to_pixmap(it.thumb))
+        else:
+            self.thumb.clear()
         labels = {"wait": (tr('等待中'), ""), "run": (tr('處理中'), "run"), "ok": (tr('完成'), "ok"),
                   "warn": (tr('完成，有提醒'), "warn"), "bad": (tr('失敗'), "bad")}
         self.chip.set(*labels[it.status])
@@ -154,9 +183,10 @@ class FileRow(QWidget):
         elif it.status == "bad":
             meta = it.error
         elif it.status == "run":
-            meta = tr('生成載體、嵌入 ID、校驗、回提自檢…')
+            meta = tr('提取筆跡、生成載體、嵌入 ID、回提自檢…')
         else:
-            meta = tr('{v}×{v2} · {v3}', v=it.size[0], v2=it.size[1], v3=tr('非透明底') if it.opaque else tr('透明 PNG')) if not it.error else it.error
+            kind = tr('已去背景') if it.background_removed else (tr('非透明底') if it.opaque else tr('透明 PNG'))
+            meta = tr('{v}×{v2} · {v3}', v=it.size[0], v2=it.size[1], v3=kind) if not it.error else it.error
         self.meta.setText(meta)
         self.meta.setToolTip(meta)
 
@@ -172,7 +202,8 @@ class EmbedPage(QWidget):
         self.items: list[Item] = []
         self.job = None
         st = store.settings
-        self.params = core.CarrierParams(st.mode, st.padding, st.alpha, st.feather, st.texture)
+        self.params = core.CarrierParams(st.mode, st.padding, st.alpha, st.feather, st.texture,
+                                         st.remove_background, st.background_threshold)
         self.bg, self.show_carrier = "white", True
         self._timer = QTimer(self, singleShot=True, interval=90)
         self._timer.timeout.connect(self._render_preview)
@@ -185,7 +216,7 @@ class EmbedPage(QWidget):
 
         # left: files
         left = self.left = Panel(tr('待處理文件'))
-        self.drop = DropZone(tr('把簽名圖或整個資料夾拖到這裏'), tr('建議使用透明底 PNG；照片或掃描件可以先用 tools/signature-remove-bg 去背景'),
+        self.drop = DropZone(tr('把簽名圖或整個資料夾拖到這裏'), tr('支援白紙簽名照片、掃描圖和透明 PNG；預設自動去除紙張背景'),
                              [(tr('選擇文件'), self.pick_files), (tr('選擇資料夾'), self.pick_folder)])
         self.drop.dropped.connect(self.add_paths)
         left.bl.addWidget(self.drop)
@@ -205,7 +236,7 @@ class EmbedPage(QWidget):
         split.addWidget(left)
 
         # right: preview + params
-        right = Panel(tr('預覽與參數'))
+        right = self.right = Panel(tr('預覽與參數'))
         scroll = self.scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -215,6 +246,7 @@ class EmbedPage(QWidget):
         rl.setSpacing(12)
         tools = QHBoxLayout()
         seg = Segmented([("white", tr('白色文件')), ("cream", tr('米黃紙')), ("form", tr('灰色表單')), ("checker", tr('透明'))], "white")
+        seg.setToolTip(tr('僅切換預覽底色，輸出載體由下方樣式控制。'))
         seg.changed.connect(self._set_bg)
         tools.addWidget(seg)
         tools.addStretch(1)
@@ -225,6 +257,11 @@ class EmbedPage(QWidget):
         self.carrier_cb.toggled.connect(self._set_carrier)
         tools.addWidget(self.carrier_cb)
         rl.addLayout(tools)
+        self.background_cb = QCheckBox(tr('自動去除原圖背景'))
+        self.background_cb.setChecked(self.params.remove_background)
+        self.background_cb.toggled.connect(self._set_background_removal)
+        rl.addWidget(self.background_cb)
+        rl.addWidget(label(tr('先提取筆跡，再生成所選載體；透明 PNG 保留原樣。'), muted=True, wrap=True))
         self.preview = QLabel()
         self.preview.setMinimumSize(320, 180)
         self.preview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -266,7 +303,8 @@ class EmbedPage(QWidget):
         self.sliders = {}
         for i, (key, text, lo, hi, unit) in enumerate((
                 ("alpha", tr('透明度上限'), 16, 255, ""), ("feather", tr('邊緣羽化'), 4, 250, " px"),
-                ("texture", tr('紋理強度'), 0, 20, ""), ("padding", tr('四周留白'), 16, 300, " px"))):
+                ("texture", tr('紋理強度'), 0, 20, ""), ("padding", tr('四周留白'), 16, 300, " px"),
+                ("background_threshold", tr('筆跡保留閾值'), 100, 250, ""))):
             box = QVBoxLayout()
             box.setSpacing(2)
             head = QHBoxLayout()
@@ -278,6 +316,8 @@ class EmbedPage(QWidget):
             sl.setRange(lo, hi)
             sl.setValue(getattr(self.params, key))
             sl.valueChanged.connect(lambda v, k=key: self._set_param(k, v))
+            if key == "background_threshold":
+                sl.setToolTip(tr('提高可保留較淡筆跡，降低可去除陰影和雜點'))
             box.addLayout(head)
             box.addWidget(sl)
             self.sliders[key] = (sl, val, unit, text)
@@ -323,7 +363,7 @@ class EmbedPage(QWidget):
         for f in files:
             if str(f.resolve()) in known:
                 continue
-            it = load_item(f)
+            it = load_item(f, self.params)
             if it.error:
                 it.status = "bad"
             self.items.append(it)
@@ -377,13 +417,33 @@ class EmbedPage(QWidget):
 
     def _set_mode(self, mode):
         self.params.mode = mode
+        self._invalidate_results()
         self._sync_controls()
         self.schedule()
 
     def _set_param(self, key, v):
         setattr(self.params, key, v)
+        self._invalidate_results()
+        if key == "background_threshold":
+            self.store.settings.background_threshold = v
+            self.store.save_settings()
         self._sync_controls()
         self.schedule()
+
+    def _set_background_removal(self, enabled):
+        self.params.remove_background = enabled
+        self._invalidate_results()
+        self.store.settings.remove_background = enabled
+        self.store.save_settings()
+        self._sync_controls()
+        self.schedule()
+
+    def _invalidate_results(self):
+        for i, item in enumerate(self.items):
+            if item.status in ("ok", "warn"):
+                item.status, item.out, item.warnings = "wait", "", []
+                self._row(i).update_from(item)
+        self._summary()
 
     def _set_out(self, p):
         self.store.settings.output_dir = p
@@ -394,7 +454,8 @@ class EmbedPage(QWidget):
         for key, (sl, val, unit, _t) in self.sliders.items():
             v = sl.value()
             enabled = not ((key == "alpha" and m == "white") or (key == "feather" and not m.startswith("feathered"))
-                           or (key == "texture" and m != "feathered_texture"))
+                           or (key == "texture" and m != "feathered_texture")
+                           or (key == "background_threshold" and (not self.params.remove_background or self.job)))
             sl.setEnabled(enabled)
             val.setText(("255" if key == "alpha" and m == "white" else ("±" if key == "texture" else "") + str(v)) + unit)
         for key, (card, _img) in self.mode_cards.items():
@@ -404,7 +465,11 @@ class EmbedPage(QWidget):
 
     def apply_defaults(self):
         st = self.store.settings
-        self.params = core.CarrierParams(st.mode, st.padding, st.alpha, st.feather, st.texture)
+        self.params = core.CarrierParams(st.mode, st.padding, st.alpha, st.feather, st.texture,
+                                         st.remove_background, st.background_threshold)
+        self.background_cb.blockSignals(True)
+        self.background_cb.setChecked(st.remove_background)
+        self.background_cb.blockSignals(False)
         for key, (sl, *_r) in self.sliders.items():
             sl.blockSignals(True)
             sl.setValue(getattr(self.params, key))
@@ -421,6 +486,9 @@ class EmbedPage(QWidget):
 
     def _render_preview(self):
         it = self.current()
+        if it:
+            prepare_item(it, self.params)
+            self._row(self.list.currentRow()).update_from(it)
         w = max(360, self.scroll.viewport().width() - 4)
         h = int(w * 300 / 520)
         self.preview.setFixedHeight(h)
@@ -466,7 +534,7 @@ class EmbedPage(QWidget):
         if len(password) < 12:
             self.toast(tr('請先在「設定」裏設定至少 12 個字元的水印密碼'))
             return
-        queue = [i for i, it in enumerate(self.items) if it.status in ("wait", "bad") and not it.error]
+        queue = [i for i, it in enumerate(self.items) if it.status in ("wait", "bad") and it.readable]
         if not queue:
             self.toast(tr('沒有待處理的文件'))
             return
@@ -488,6 +556,9 @@ class EmbedPage(QWidget):
             return "done"
 
         self.run_btn.setText(tr('停止'))
+        self.right.setEnabled(False)
+        self.background_cb.setEnabled(False)
+        self.sliders["background_threshold"][0].setEnabled(False)
         self.clear_btn.setEnabled(False)
         self.prog.setValue(0)
         self.job = start_job(work, self._on_progress, self._on_done, self._on_failed)
@@ -511,6 +582,9 @@ class EmbedPage(QWidget):
 
     def _finish(self):
         self.job = None
+        self.right.setEnabled(True)
+        self.background_cb.setEnabled(True)
+        self._sync_controls()
         self.run_btn.setEnabled(True)
         self.run_btn.setText(tr('開始加水印'))
         self.clear_btn.setEnabled(True)

@@ -45,6 +45,8 @@ def embed_file(store: Store, src: Path, password: str, params: core.CarrierParam
     src = Path(src)
     try:
         img, warnings = core.load_signature(src)
+        if not params.remove_background and img.getchannel("A").getextrema()[0] == 255:
+            warnings.append(tr('原圖不是透明底，建議先去背景'))
         last_err: Exception | None = None
         for _ in range(retries):
             short = core.new_short_id()
@@ -73,7 +75,9 @@ def embed_file(store: Store, src: Path, password: str, params: core.CarrierParam
         rec = Record(
             id=sig_id, short_id=short, purpose=purpose, mode=params.mode, width=res.width, height=res.height,
             sig_bbox=res.sig_bbox, params={"padding": params.padding, "alpha": params.alpha,
-                                           "feather": params.feather, "texture": params.texture},
+                                           "feather": params.feather, "texture": params.texture,
+                                           "remove_background": params.remove_background,
+                                           "background_threshold": params.background_threshold},
             src_name=src.name, src_sha256=core.sha256_file(src), out_path=str(out_path),
             out_sha256=core.sha256_file(out_path), created=now_iso(), format=core.FORMAT,
             extra={"upload": str(upload)})

@@ -28,6 +28,8 @@ def _cli(argv: list[str]) -> int:
     e.add_argument("--mode", default=None, choices=core.MODES)
     e.add_argument("--purpose", default="signature-use")
     e.add_argument("--out")
+    e.add_argument("--remove-background", action=argparse.BooleanOptionalAction, default=None)
+    e.add_argument("--background-threshold", type=int)
     t = sub.add_parser("trace", help=tr('溯源文件、照片或圖片'))
     t.add_argument("paths", nargs="+")
     a = ap.parse_args(argv)
@@ -40,7 +42,9 @@ def _cli(argv: list[str]) -> int:
         return 2
     if a.cmd == "embed":
         st = store.settings
-        p = core.CarrierParams(a.mode or st.mode, st.padding, st.alpha, st.feather, st.texture)
+        p = core.CarrierParams(a.mode or st.mode, st.padding, st.alpha, st.feather, st.texture,
+                              st.remove_background if a.remove_background is None else a.remove_background,
+                              st.background_threshold if a.background_threshold is None else a.background_threshold)
         fails = 0
         for f in service.expand_inputs([Path(x) for x in a.paths]):
             r = service.embed_file(store, f, pw, p, a.purpose, Path(a.out) if a.out else None)

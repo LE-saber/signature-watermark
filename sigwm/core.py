@@ -11,9 +11,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
-from . import imgops
+from . import background, imgops
 from .vendor import bwm
 from .i18n import tr
 
@@ -37,11 +37,14 @@ class CarrierParams:
     alpha: int = 96
     feather: int = 48
     texture: int = 4
+    remove_background: bool = True
+    background_threshold: int = 220
 
     def validate(self):
         if self.mode not in MODES:
             raise WatermarkError(tr('未知的載體模式：{mode}', mode=self.mode))
-        for name, lo, hi in (("padding", 16, 300), ("alpha", 16, 255), ("feather", 4, 250), ("texture", 0, 20)):
+        for name, lo, hi in (("padding", 16, 300), ("alpha", 16, 255), ("feather", 4, 250), ("texture", 0, 20),
+                             ("background_threshold", 100, 250)):
             v = getattr(self, name)
             if not lo <= v <= hi:
                 raise WatermarkError(tr('{name} 必須在 {lo} 到 {hi} 之間', name=name, lo=lo, hi=hi))
@@ -93,18 +96,26 @@ def sha256_file(path: Path) -> str:
 # ---------------------------------------------------------------- carrier
 
 def load_signature(path: Path) -> tuple[Image.Image, list[str]]:
-    """Open an image as RGBA. Opaque images are accepted with a warning."""
+    """Open and orient an image as RGBA; preparation is shared by preview and embedding."""
     warnings: list[str] = []
     try:
         img = Image.open(path)
         img.load()
+        img = ImageOps.exif_transpose(img)
     except Exception as exc:  # noqa: BLE001 - Pillow raises many types
         raise WatermarkError(tr('無法讀取圖片：{exc}', exc=exc)) from exc
-    has_alpha = img.mode in ("RGBA", "LA", "PA") or (img.mode == "P" and "transparency" in img.info)
     img = img.convert("RGBA")
-    if not has_alpha or np.asarray(img.getchannel("A")).min() == 255:
-        warnings.append(tr('原圖不是透明底，建議先去背景'))
     return img, warnings
+
+
+def prepare_signature(img: Image.Image, p: CarrierParams) -> Image.Image:
+    """Remove opaque paper before cropping/adding a replacement carrier."""
+    img = img.convert("RGBA")
+    if p.remove_background and background.has_paper_background(img):
+        img = background.remove_paper(img, p.background_threshold)
+        if img.getchannel("A").getbbox() is None:
+            raise WatermarkError(tr('未檢測到筆跡，請提高筆跡保留閾值或關閉自動去背景'))
+    return img
 
 
 def prepare_master(img: Image.Image, padding: int) -> tuple[Image.Image, tuple[int, int, int, int]]:
@@ -112,16 +123,13 @@ def prepare_master(img: Image.Image, padding: int) -> tuple[Image.Image, tuple[i
     if bbox is None:
         raise WatermarkError(tr('圖片沒有可見像素'))
     l, t, r, b = bbox
-    crop_box = (max(0, l - padding), max(0, t - padding), min(img.width, r + padding), min(img.height, b + padding))
-    cropped = img.crop(crop_box)
-    sig = (l - crop_box[0], t - crop_box[1], r - crop_box[0], b - crop_box[1])
-    tw, th = max(cropped.width, MIN_CARRIER[0]), max(cropped.height, MIN_CARRIER[1])
-    if (tw, th) == cropped.size:
-        return cropped, sig
+    cropped = img.crop(bbox)
+    tw = max(cropped.width + padding * 2, MIN_CARRIER[0])
+    th = max(cropped.height + padding * 2, MIN_CARRIER[1])
     canvas = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
     x, y = (tw - cropped.width) // 2, (th - cropped.height) // 2
     canvas.alpha_composite(cropped, (x, y))
-    return canvas, (sig[0] + x, sig[1] + y, sig[2] + x, sig[3] + y)
+    return canvas, (x, y, x + cropped.width, y + cropped.height)
 
 
 def feather_mask(width: int, height: int, alpha_max: int, feather: int) -> np.ndarray:
@@ -157,7 +165,7 @@ def build_carrier(master: Image.Image, p: CarrierParams, texture_seed: int) -> I
 
 def render_preview(img: Image.Image, p: CarrierParams, seed: int = 1) -> Image.Image:
     """Carrier preview without the (slow) watermark step."""
-    master, _ = prepare_master(img, p.padding)
+    master, _ = prepare_master(prepare_signature(img, p), p.padding)
     return build_carrier(master, p, seed)
 
 
@@ -199,7 +207,7 @@ def embed_signature(img: Image.Image, password: str, p: CarrierParams, sig_id_fo
                     short_id: str, self_check: bool = True) -> EmbedResult:
     p.validate()
     seed_img, seed_wm = password_seeds(password)
-    master, sig_bbox = prepare_master(img, p.padding)
+    master, sig_bbox = prepare_master(prepare_signature(img, p), p.padding)
     texture_seed = int(hashlib.sha256(sig_id_for_seed.encode("ascii")).hexdigest()[:8], 16)
     carrier = build_carrier(master, p, texture_seed)
     cap = capacity_bits(*carrier.size)
