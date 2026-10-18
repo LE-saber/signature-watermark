@@ -67,6 +67,14 @@ jobs:
           else BIN=dist/SigWatermark/SigWatermark; fi
           "$BIN" --help
 
+      - name: Smoke-test the frozen GUI in an isolated environment
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then BIN=dist/SigWatermark.app/Contents/MacOS/SigWatermark;
+          elif [ "$RUNNER_OS" = "Windows" ]; then BIN=dist/SigWatermark/SigWatermark.exe;
+          else BIN=dist/SigWatermark/SigWatermark; fi
+          python packaging/verify_frozen.py "$BIN"
+
       - uses: actions/upload-artifact@v4
         with:
           name: SigWatermark-${{ matrix.os }}

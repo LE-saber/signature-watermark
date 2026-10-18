@@ -9,6 +9,7 @@ Double-click (no arguments) opens the window. Command line:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from sigwm.i18n import set_language, tr
@@ -75,7 +76,7 @@ def _attach_console() -> None:
         sys.stderr = sys.stdout
 
 
-def main() -> int:
+def main(smoke_dir: Path | None = None) -> int:
     if len(sys.argv) > 1 and sys.argv[1] in ("embed", "trace", "--data-dir", "-h", "--help"):
         _attach_console()
         try:
@@ -91,7 +92,7 @@ def main() -> int:
     from sigwm.storage import Store
 
     QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    app = QApplication(sys.argv)
+    app = QApplication([sys.argv[0]] if smoke_dir else sys.argv)
     app.setApplicationName("SigWatermark")
     app.setStyle("Fusion")
     icon = Path(__file__).resolve().parent / "packaging" / "icon.png"
@@ -100,8 +101,10 @@ def main() -> int:
     if icon.exists():
         app.setWindowIcon(QIcon(str(icon)))
     try:
-        store = Store()
+        store = Store(smoke_dir / "data", True) if smoke_dir else Store()
     except Exception as exc:  # noqa: BLE001
+        if smoke_dir:
+            raise
         i18n.set_language("")
         QMessageBox.critical(None, "SigWatermark", tr('無法打開資料目錄：{exc}', exc=exc))
         return 1
@@ -112,10 +115,45 @@ def main() -> int:
     theme.apply(app, lang)
     win = MainWindow(store)
     win.show()
+    if smoke_dir:
+        from PySide6.QtCore import QTimer, qVersion
+
+        def check_window():
+            try:
+                for key in ("embed", "trace", "records", "backup", "clean", "settings"):
+                    win.go(key)
+                if win.stack.count() != 6 or not win.isVisible():
+                    raise RuntimeError("The application window did not initialize")
+                report = {"ok": True, "qt_version": qVersion(), "platform": app.platformName(),
+                          "pages": win.stack.count()}
+                (smoke_dir / "gui-smoke.json").write_text(json.dumps(report), encoding="utf-8")
+                app.quit()
+            except Exception as exc:  # noqa: BLE001 - report asynchronous Qt failures to the caller
+                (smoke_dir / "gui-smoke.json").write_text(
+                    json.dumps({"ok": False, "error": str(exc)}), encoding="utf-8")
+                app.exit(1)
+
+        QTimer.singleShot(150, check_window)
     rc = app.exec()
     store.close()
     return rc
 
 
+def gui_smoke_test(folder: Path) -> int:
+    """Exercise normal GUI startup without reading the user's data or keyring."""
+    folder.mkdir(parents=True, exist_ok=True)
+    try:
+        from sigwm import secret
+        secret._keyring = lambda: None
+        return main(folder)
+    except Exception:  # noqa: BLE001 - include early DLL import failures in a machine-readable report
+        import traceback
+        (folder / "gui-smoke.json").write_text(
+            json.dumps({"ok": False, "error": traceback.format_exc()}), encoding="utf-8")
+        return 1
+
+
 if __name__ == "__main__":
+    if len(sys.argv) == 3 and sys.argv[1] == "--gui-smoke-test":
+        sys.exit(gui_smoke_test(Path(sys.argv[2])))
     sys.exit(main())

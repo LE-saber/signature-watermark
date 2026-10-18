@@ -6,6 +6,7 @@ PyInstaller cannot cross-compile: run this on Windows, macOS and Linux (CI does)
 """
 from __future__ import annotations
 
+import os
 import platform
 import shutil
 import subprocess
@@ -80,6 +81,18 @@ def fetch_cjk_for_linux() -> None:
         urllib.request.urlretrieve("https://github.com/notofonts/noto-cjk/raw/Sans2.004/LICENSE", lic)
 
 
+def build_environment() -> dict[str, str]:
+    env = os.environ.copy()
+    if sys.platform == "win32":
+        # Dependency scanning must not pick up unrelated DLLs from tools such as
+        # Poppler. Its ICU has the same filename as Windows ICU but different exports.
+        windows = Path(env["SYSTEMROOT"])
+        paths = (Path(sys.executable).parent, Path(sys.base_prefix), Path(sys.base_prefix) / "DLLs",
+                 windows / "System32", windows)
+        env["PATH"] = os.pathsep.join(str(p) for p in dict.fromkeys(paths) if p.is_dir())
+    return env
+
+
 def main() -> int:
     fetch_cjk_for_linux()
     dist, build = ROOT / "dist", ROOT / "build"
@@ -87,7 +100,7 @@ def main() -> int:
     shutil.rmtree(build, ignore_errors=True)
     subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
                     "--distpath", str(dist), "--workpath", str(build),
-                    str(ROOT / "packaging" / "sigwatermark.spec")], check=True)
+                    str(ROOT / "packaging" / "sigwatermark.spec")], check=True, env=build_environment())
 
     stage = dist / "stage"
     stage.mkdir()

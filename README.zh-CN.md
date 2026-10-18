@@ -15,14 +15,14 @@
 
 从 [Releases](https://github.com/LE-saber/signature-watermark/releases/latest) 下载**便携应用压缩包**。GitHub 自动生成的 “Source code” 是源码包，需要自行配置 Python 环境。
 
-| 平台 | 1.0.1 版本 | 解压后启动 |
+| 平台 | 1.0.2 版本 | 解压后启动 |
 | --- | --- | --- |
-| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
-| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-macos-arm64.zip) | `SigWatermark.app` |
-| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-macos-x64.zip) | `SigWatermark.app` |
-| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
+| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
+| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-macos-arm64.zip) | `SigWatermark.app` |
+| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-macos-x64.zip) | `SigWatermark.app` |
+| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
 
-无需另外安装 Python。请完整解压，保留程序与配套文件。每个压缩包均附带英文快速说明和三种语言的 README。校验值见 [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SHA256SUMS.txt)。
+无需另外安装 Python。请完整解压，保留程序与配套文件。每个压缩包均附带英文快速说明和三种语言的 README。校验值见 [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SHA256SUMS.txt)。
 
 Windows 包未代码签名；macOS 包未签名、公证，首次启动可能需要在系统安全设置中批准。macOS 包在 macOS 15 原生环境构建。Linux 包在 Ubuntu 22.04 构建，需要桌面环境。Debian/Ubuntu 如缺少 Qt/xcb 运行库，可安装：
 
@@ -85,6 +85,8 @@ sudo apt-get install libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 lib
 .\SigWatermark\SigWatermark.exe --data-dir .\alternate-data embed .\signature.png --out .\output
 ```
 
+启动诊断可运行程序并附加 `--gui-smoke-test <空文件夹>`；程序检查六个页面后写入 `gui-smoke.json` 并退出。
+
 Linux 使用 `./SigWatermark/SigWatermark`，macOS 使用 `./SigWatermark.app/Contents/MacOS/SigWatermark`，参数相同。`--data-dir` 必须放在子命令之前。模式可选 `white`、`translucent`、`feathered`、`feathered_texture`。
 
 ## 使用限制
@@ -110,7 +112,7 @@ python -m venv .venv
 
 macOS/Linux 用 `python3 -m venv .venv` 创建环境，然后以 `.venv/bin/python` 执行相同命令。Linux 打包需要前述 Qt 库和 `binutils`。
 
-PyInstaller 只能构建当前系统与架构。`packaging/build.py` 会重建 `build/` 和 `dist/`，压缩包输出到 `dist/`。推送 `v*` 标签后，自动运行四种目标平台的原生测试和构建，全部成功后生成校验值并发布 Release。
+PyInstaller 只能构建当前系统与架构。`packaging/build.py` 会重建 `build/` 和 `dist/`，压缩包输出到 `dist/`。推送 `v*` 标签后，自动运行四种目标平台的原生测试、构建和隔离环境下的图形界面启动检查，全部成功后生成校验值并发布 Release。
 
 界面翻译维护在 `tools/i18n/table*.py`。修改界面文字后补充译文，再运行 `python tools/i18n/build.py`；脚本和测试会检查译文覆盖及占位符。
 

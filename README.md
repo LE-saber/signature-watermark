@@ -15,14 +15,14 @@ Give each issued signature a separate ID and purpose, then check which issuance 
 
 Choose a **portable application archive** from [Releases](https://github.com/LE-saber/signature-watermark/releases/latest). The automatically generated “Source code” downloads require a Python environment.
 
-| Platform | Version 1.0.1 | Launch after extraction |
+| Platform | Version 1.0.2 | Launch after extraction |
 | --- | --- | --- |
-| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
-| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-macos-arm64.zip) | `SigWatermark.app` |
-| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-macos-x64.zip) | `SigWatermark.app` |
-| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SigWatermark-1.0.1-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
+| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
+| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-macos-arm64.zip) | `SigWatermark.app` |
+| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-macos-x64.zip) | `SigWatermark.app` |
+| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SigWatermark-1.0.2-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
 
-No separate Python installation is needed. Extract the entire archive and keep all support files together. Every archive includes an English quick-start guide and all three README versions. Verify downloads with [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.1/SHA256SUMS.txt).
+No separate Python installation is needed. Extract the entire archive and keep all support files together. Every archive includes an English quick-start guide and all three README versions. Verify downloads with [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.2/SHA256SUMS.txt).
 
 Windows builds are unsigned. macOS builds are unsigned and not notarized; first launch may require approval in macOS security settings. Native macOS builds use macOS 15 runners. Linux builds use Ubuntu 22.04 and require a working desktop environment. On Debian/Ubuntu, install missing Qt/xcb runtime libraries with:
 
@@ -85,6 +85,8 @@ Configure the password in the GUI first. Windows PowerShell examples, from the e
 .\SigWatermark\SigWatermark.exe --data-dir .\alternate-data embed .\signature.png --out .\output
 ```
 
+For startup diagnostics, run the executable with `--gui-smoke-test <empty-folder>`; it writes `gui-smoke.json` and exits after checking all six pages.
+
 On Linux, use `./SigWatermark/SigWatermark`; on macOS, use `./SigWatermark.app/Contents/MacOS/SigWatermark` with the same arguments. `--data-dir` must precede the subcommand. Available modes: `white`, `translucent`, `feathered`, `feathered_texture`.
 
 ## Limitations
@@ -110,7 +112,7 @@ python -m venv .venv
 
 On macOS/Linux, create the environment with `python3 -m venv .venv`, then use `.venv/bin/python` for the same commands. Linux needs the Qt libraries listed above and `binutils` for packaging.
 
-PyInstaller builds only for the current OS/architecture. `packaging/build.py` recreates `build/` and `dist/`; archives appear in `dist/`. Tag pushes matching `v*` run native tests and builds for all four targets, generate checksums, and publish after all builds succeed.
+PyInstaller builds only for the current OS/architecture. `packaging/build.py` recreates `build/` and `dist/`; archives appear in `dist/`. Tag pushes matching `v*` run native tests, builds, and isolated frozen GUI startup checks for all four targets, then generate checksums and publish after every check succeeds.
 
 UI translations are maintained in `tools/i18n/table*.py`. After changing UI strings, update translations and run `python tools/i18n/build.py`; the script and tests check coverage and placeholders.
 

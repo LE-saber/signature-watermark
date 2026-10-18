@@ -1,40 +1,34 @@
-## SigWatermark 1.0.1
+## SigWatermark 1.0.2
 
-Portable desktop app for invisible signature watermarks and document tracing.
+Portable builds for Windows x64, macOS Apple Silicon, macOS Intel, and Linux x64. Extract the complete archive before launching; no Python installation is needed. All four archives are covered by `SHA256SUMS.txt`.
+
+### Windows startup fix
+
+The Windows v1.0.0 archive accidentally included ICU DLLs from an unrelated Poppler installation on the build machine. QtCore expects the Windows ICU API, so those conflicting DLLs caused `DLL load failed while importing QtCore: The specified procedure could not be found`.
+
+- Restrict Windows build-time DLL discovery to Python and Windows directories, preventing unrelated tools on PATH from contaminating the archive.
+- Add a frozen GUI startup check in an isolated environment. It imports Qt, creates the actual application window, visits all six pages, runs the event loop, and requires an explicit success report. Windows checks use the native `windows` platform plugin.
+- Add a source GUI startup regression test. The previous CLI-only check did not catch this failure because locale detection can fall back when QtCore is unavailable.
+
+The watermark algorithm and stored data format are unchanged. Back up your existing data before upgrading and keep your original watermark password. Install this version in a fresh folder; do not merge its support files with an old archive.
 
 ### Downloads
 
-| System | Archive |
+| Platform | Archive |
 | --- | --- |
-| Windows x64 | `SigWatermark-1.0.1-windows-x64.zip` |
-| macOS Apple Silicon | `SigWatermark-1.0.1-macos-arm64.zip` |
-| macOS Intel | `SigWatermark-1.0.1-macos-x64.zip` |
-| Linux x64 | `SigWatermark-1.0.1-linux-x64.tar.gz` |
+| Windows x64 | `SigWatermark-1.0.2-windows-x64.zip` |
+| macOS Apple Silicon | `SigWatermark-1.0.2-macos-arm64.zip` |
+| macOS Intel | `SigWatermark-1.0.2-macos-x64.zip` |
+| Linux x64 | `SigWatermark-1.0.2-linux-x64.tar.gz` |
 
-Extract the complete archive before launching. Python is included. Keep the application and its support files together. `SHA256SUMS.txt` contains checksums for all four archives.
-
-### Changes
-
-- Publish native builds for Windows, macOS Apple Silicon, macOS Intel, and Linux.
-- Replace the retired Intel macOS runner and update the Apple Silicon build environment.
-- Make English the default repository README and portable quick-start guide, with complete Simplified and Traditional Chinese README versions.
-- Include all three README versions in every archive and keep the macOS bundle version in sync with the application.
-- Generate release checksums automatically after all platform tests and builds succeed.
-
-### First launch
-
-Open `SigWatermark.exe` on Windows, `SigWatermark.app` on macOS, or `SigWatermark/SigWatermark` on Linux. Set a watermark password of at least 12 characters in Settings. Retain the same password and signing records for later tracing; use the built-in backup feature when moving between computers.
-
-The application UI supports nine languages and follows the system language by default. Changing the README default does not change the UI language preference. The watermark format remains `SIG-BLIND-WM-2`, with legacy extraction support.
-
-Windows and macOS builds are unsigned; macOS builds are not notarized. Linux desktop installations may need the xcb runtime libraries listed in the README. Watermark recovery depends on image quality, alignment, and the background; this is not a cryptographic document-signing system.
+Windows and macOS builds are unsigned; macOS builds are not notarized. English, Simplified Chinese, and Traditional Chinese documentation is included. The UI still follows your system language by default.
 
 ---
 
 ## 中文说明
 
-本版本提供 Windows x64、macOS Apple Silicon、macOS Intel 和 Linux x64 四种原生便携包，无需另行安装 Python。请完整解压后启动，并保留程序的配套文件。
+修复 Windows v1.0.0 启动时报 `DLL load failed while importing QtCore` 的问题：原构建误打包了 Poppler 的 ICU DLL，与 Qt 所需的 Windows ICU 接口冲突。
 
-仓库 README 和便携包快速说明默认使用英文，同时提供完整的简体中文、繁體中文 README。应用界面仍默认跟随系统语言，支持九种语言。首次使用请设置至少 12 个字符的水印密码，迁移电脑时请备份签发记录和密码。
+本版本隔离 Windows 构建时的 DLL 搜索路径，并新增真正的图形界面启动验证：创建主窗口、检查六个页面、运行事件循环，要求明确成功报告；Windows 使用原生平台插件验证。四个平台通过测试、打包和图形界面启动检查后才发布。
 
-四个平台的测试和构建全部通过后才自动发布，所有压缩包的校验值见 `SHA256SUMS.txt`。Windows、macOS 包尚未代码签名；macOS 包尚未公证。
+请解压到全新目录，不要覆盖合并旧版 `_internal` 文件夹。升级前备份原有数据，保留水印密码，通过内置备份恢复迁移记录。水印算法和数据格式没有改变。
