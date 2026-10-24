@@ -1,6 +1,8 @@
 # SigWatermark
 
-[English](README.md) · **简体中文** · [繁體中文](README.zh-TW.md)
+[English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](https://github.com/LE-saber/signature-watermark/blob/main/README.ja.md)
+
+日文指南提供在线版本。既有 v1.0.4 压缩包仍包含原先三种 README，本次文档修改不会重新构建发行附件。
 
 [![构建](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml/badge.svg)](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml)
 [![版本](https://img.shields.io/github/v/release/LE-saber/signature-watermark)](https://github.com/LE-saber/signature-watermark/releases/latest)
