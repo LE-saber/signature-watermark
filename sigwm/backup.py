@@ -20,8 +20,8 @@ from typing import Callable
 
 import pyzipper
 
-from . import secret
-from .storage import KINDS, Record, Store, now_iso
+from . import core, secret
+from .storage import Record, Store, now_iso
 from .i18n import tr
 
 FORMAT = "SWBAK-1"
@@ -108,7 +108,7 @@ def create(store: Store, dest_dir: Path, parts: list[str], password: str = "",
         raise
     if progress:
         progress(len(jobs), len(jobs), "")
-    store.mark_backed_up([p for p in parts if p in KINDS], now_iso())
+    store.mark_backed_up([p for _, p, _ in jobs], now_iso())
     store.add_backup(path, path.stat().st_size, parts, bool(password))
     return path
 
@@ -162,6 +162,7 @@ def restore(store: Store, path: Path, parts: list[str], password: str = "", over
         if overwrite and file_parts:
             store.delete_files(file_parts, only_backed_up=False)
         items = [(arc, info) for arc, info in m["files"].items() if info["part"] in file_parts]
+        restored_at = now_iso()
         for i, (arc, info) in enumerate(items):
             name = arc.split("/", 2)[2].split("-", 1)[1]
             target_dir = store.kind_dir(info["part"])
@@ -171,9 +172,9 @@ def restore(store: Store, path: Path, parts: list[str], password: str = "", over
                 target = target_dir / f"{Path(name).stem}-{n}{Path(name).suffix}"
                 n += 1
             target.write_bytes(zf.read(arc))
-            store.track(target, info["part"])
-            if info.get("record"):
-                restored_out[info["record"]] = target
+            store.track(target, info["part"], backed_up=restored_at)
+            if info["part"] == "outputs" and info.get("record"):
+                restored_out[info["record"]] = target.resolve()
             summary["files"] += 1
             if progress:
                 progress(i + 1, len(items), name)
@@ -184,21 +185,26 @@ def restore(store: Store, path: Path, parts: list[str], password: str = "", over
                 with store._lock:
                     store.db.execute("DELETE FROM records")
                     store.db.commit()
-            existing = {r.id for r in store.records()}
+            existing = {r.id: r for r in store.records()}
             for d in recs:
                 d["sig_bbox"] = tuple(d.get("sig_bbox") or (0, 0, 0, 0))
                 rec = Record(**d)
-                if rec.id in existing:
+                target = restored_out.get(rec.id)
+                local = existing.get(rec.id)
+                if local is not None:
                     summary["records_skipped"] += 1
+                    # Keep local metadata and any still-valid local path.
+                    if (target is not None and (not local.out_path or not Path(local.out_path).is_file())
+                            and _matches_output(local, target)):
+                        store.relink_output(local, target)
                     continue
-                if rec.id in restored_out and not Path(rec.out_path).exists():
-                    rec.out_path = str(restored_out[rec.id])
+                if target is not None and _matches_output(rec, target):
+                    rec.out_path = str(target)
                 store.add_record(rec)
+                existing[rec.id] = rec
                 summary["records_added"] += 1
-    # restored files came from a backup, so they are backed up by definition
-    if file_parts:
-        with store._lock:
-            store.db.execute("UPDATE files SET backed_up=? WHERE backed_up IS NULL AND kind IN (%s)" %
-                             ",".join("?" * len(file_parts)), (now_iso(), *file_parts))
-            store.db.commit()
     return summary
+
+
+def _matches_output(record: Record, path: Path) -> bool:
+    return bool(record.out_sha256) and core.sha256_file(path) == record.out_sha256.upper()

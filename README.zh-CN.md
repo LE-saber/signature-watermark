@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](https://github.com/LE-saber/signature-watermark/blob/main/README.ja.md)
 
-日文指南提供在线版本。既有 v1.0.4 压缩包仍包含原先三种 README，本次文档修改不会重新构建发行附件。
+日文指南提供在线版本。
 
 [![构建](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml/badge.svg)](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml)
 [![版本](https://img.shields.io/github/v/release/LE-saber/signature-watermark)](https://github.com/LE-saber/signature-watermark/releases/latest)
@@ -12,6 +12,10 @@
 每次签发使用不同的 ID 和用途，日后发现签名出现在其他文件中，就可以尝试追查对应的签发记录。主程序的图像处理和记录保存在本机。
 
 ![批量加水印与签名预览](docs/images/batch-watermark.png)
+
+## 1.0.5 修复
+
+修复合并恢复后误标「已备份」以及签发记录未关联恢复 PNG 的问题。升级后请先做一次新备份，再使用「仅清理已备份文件」。
 
 ## 1.0.4 更新
 
@@ -28,14 +32,14 @@
 
 从 [Releases](https://github.com/LE-saber/signature-watermark/releases/latest) 下载**便携应用压缩包**。GitHub 自动生成的 “Source code” 是源码包，需要自行配置 Python 环境。
 
-| 平台 | 1.0.4 版本 | 解压后启动 |
+| 平台 | 1.0.5 版本 | 解压后启动 |
 | --- | --- | --- |
-| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
-| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-arm64.zip) | `SigWatermark.app` |
-| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-x64.zip) | `SigWatermark.app` |
-| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
+| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
+| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-macos-arm64.zip) | `SigWatermark.app` |
+| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-macos-x64.zip) | `SigWatermark.app` |
+| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
 
-无需另外安装 Python。请完整解压，保留程序与配套文件。每个压缩包均附带英文快速说明和三种语言的 README。校验值见 [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SHA256SUMS.txt)。
+无需另外安装 Python。请完整解压，保留程序与配套文件。每个压缩包均附带英文快速说明和三种语言的 README。校验值见 [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SHA256SUMS.txt)。
 
 Windows 包未代码签名；macOS 包未签名、公证，首次启动可能需要在系统安全设置中批准。macOS 包在 macOS 15 原生环境构建。Linux 包在 Ubuntu 22.04 构建，需要桌面环境。Debian/Ubuntu 如缺少 Qt/xcb 运行库，可安装：
 

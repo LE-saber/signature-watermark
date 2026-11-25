@@ -11,6 +11,10 @@
 
 ![署名プレビュー付きの一括透かし処理](docs/images/batch-watermark.png)
 
+## 1.0.5 の修正
+
+マージ復元後に未バックアップのファイルがバックアップ済みになる問題と、復元した PNG が発行記録に紐づかない問題を修正しました。アップグレード後はバックアップ済みファイルの削除を実行する前に、新しいバックアップを作成してください。
+
 ## 1.0.4 の変更
 
 - 罫線、方眼、フォームの線、写真端の不要物、紙の模様を除去し、交差する筆画、下線、点の保持を図ります。
@@ -26,14 +30,14 @@
 
 [Releases](https://github.com/LE-saber/signature-watermark/releases/latest) で**ポータブルアプリのアーカイブ**を選びます。自動生成の「Source code」は Python 環境が必要です。
 
-| 環境 | 1.0.4 | 展開後の起動先 |
+| 環境 | 1.0.5 | 展開後の起動先 |
 | --- | --- | --- |
-| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
-| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-arm64.zip) | `SigWatermark.app` |
-| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-x64.zip) | `SigWatermark.app` |
-| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
+| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
+| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-macos-arm64.zip) | `SigWatermark.app` |
+| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-macos-x64.zip) | `SigWatermark.app` |
+| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
 
-Python の別途インストールは不要です。アーカイブをすべて展開し、関連ファイルを一緒に保持します。既存 v1.0.4 アーカイブには英語のクイックガイドと英語/簡体字中国語/繁体字中国語 README が入っています。この日本語ガイドはオンライン文書で、文書更新によるアーカイブの再ビルドは行っていません。[SHA256SUMS.txt](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SHA256SUMS.txt) で取得物を照合してください。
+Python の別途インストールは不要です。アーカイブをすべて展開し、関連ファイルを一緒に保持します。アーカイブには英語のクイックガイドと英語/簡体字中国語/繁体字中国語 README が入っています。この日本語ガイドはオンライン文書です。[SHA256SUMS.txt](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SHA256SUMS.txt) で取得物を照合してください。
 
 Windows と macOS のビルドは署名なしで、macOS は公証もありません。macOS の初回起動ではセキュリティ設定で許可が必要な場合があります。macOS ビルドは macOS 15 runner、Linux は Ubuntu 22.04 を使います。Linux にはデスクトップ環境が必要です。Debian/Ubuntu で Qt/xcb ライブラリーが不足する場合：
 

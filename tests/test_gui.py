@@ -84,3 +84,59 @@ raise SystemExit(code)
                             env={**os.environ, "QT_QPA_PLATFORM": "offscreen"},
                             capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, (result.stdout, result.stderr)
+
+
+def test_merge_restore_and_backed_up_only_cleanup_through_data_pages(tmp_path):
+    root = Path(__file__).resolve().parent.parent
+    script = r'''
+import sys
+import time
+from pathlib import Path
+
+from PySide6.QtWidgets import QApplication, QPushButton
+from sigwm import backup
+from sigwm.gui.page_data import BackupPage, CleanPage
+from sigwm.storage import Store
+
+folder = Path(sys.argv[1])
+source = Store(folder / "source", True)
+archived = source.kind_dir("outputs") / "old.png"
+archived.write_bytes(b"archived output")
+source.track(archived, "outputs")
+archive = backup.create(source, folder / "archives", ["outputs"])
+source.close()
+
+app = QApplication([])
+dest = Store(folder / "dest", True)
+local = dest.kind_dir("outputs") / "new.png"
+local.write_bytes(b"unarchived local output")
+dest.track(local, "outputs")
+done = []
+restore = BackupPage(dest, lambda _message: None)
+restore.data_changed.connect(lambda: done.append(True))
+restore.rs_file.set_path(str(archive))
+restore._pick_restore(str(archive))
+assert restore.rs_merge.isChecked()
+restore.rs_btn.click()
+deadline = time.monotonic() + 8
+while not done and time.monotonic() < deadline:
+    app.processEvents()
+    time.sleep(0.01)
+assert done, restore.rs_hint.text()
+
+clean = CleanPage(dest, lambda _message: None)
+clean.show()
+assert clean.safe.isChecked() and clean._free("outputs")[0] == 1
+clean.rows["outputs"].box.setChecked(True)
+clean.clean_btn.click()
+assert clean.confirm.isVisible()
+next(button for button in clean.confirm.findChildren(QPushButton)
+     if button.objectName() == "danger").click()
+assert not (dest.kind_dir("outputs") / "old.png").exists()
+assert local.read_bytes() == b"unarchived local output"
+dest.close()
+'''
+    result = subprocess.run([sys.executable, "-c", script, str(tmp_path)], cwd=root,
+                            env={**os.environ, "QT_QPA_PLATFORM": "offscreen"},
+                            capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, (result.stdout, result.stderr)
