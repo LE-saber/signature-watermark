@@ -194,7 +194,15 @@ class Store:
         self.db = sqlite3.connect(self.root / "records.sqlite", check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
-        self.db.commit()
+        # Older releases marked whole kinds as backed up. Those flags do not
+        # prove that this specific file was archived, so fail closed on upgrade.
+        if self.db.execute("PRAGMA user_version").fetchone()[0] == 0:
+            with self.db:
+                self.db.execute("BEGIN IMMEDIATE")
+                # Recheck inside the transaction if another instance opened the DB first.
+                if self.db.execute("PRAGMA user_version").fetchone()[0] == 0:
+                    self.db.execute("UPDATE files SET backed_up = NULL")
+                    self.db.execute("PRAGMA user_version = 1")
 
     # ------------------------------------------------------------ paths
     def kind_dir(self, kind: str) -> Path:
@@ -251,6 +259,14 @@ class Store:
             row = self.db.execute("SELECT * FROM records WHERE short_id=?", (short_id,)).fetchone()
         return self._row(row) if row else None
 
+    def relink_output(self, record: Record, path: Path) -> None:
+        """Update only the path of the exact local record verified by restore."""
+        with self._lock, self.db:
+            self.db.execute(
+                "UPDATE records SET out_path=? WHERE id=? AND COALESCE(out_path, '')=? AND out_sha256=?",
+                (str(path), record.id, record.out_path, record.out_sha256),
+            )
+
     def record_count(self) -> int:
         with self._lock:
             return self.db.execute("SELECT COUNT(*) FROM records").fetchone()[0]
@@ -267,11 +283,11 @@ class Store:
         return len(recs)
 
     # ------------------------------------------------------------ tracked files
-    def track(self, path: Path, kind: str) -> None:
+    def track(self, path: Path, kind: str, *, backed_up: str | None = None) -> None:
         path = Path(path)
         with self._lock:
-            self.db.execute("INSERT OR REPLACE INTO files VALUES (?,?,?,?,NULL)",
-                            (str(path.resolve()), kind, path.stat().st_size, now_iso()))
+            self.db.execute("INSERT OR REPLACE INTO files VALUES (?,?,?,?,?)",
+                            (str(path.resolve()), kind, path.stat().st_size, now_iso(), backed_up))
             self.db.commit()
 
     def files(self, kind: str) -> list[sqlite3.Row]:
@@ -309,11 +325,10 @@ class Store:
         out["records"] = {"count": self.record_count(), "bytes": db_bytes + (self.settings_path.stat().st_size if self.settings_path.exists() else 0)}
         return out
 
-    def mark_backed_up(self, kinds: list[str], when: str) -> None:
-        with self._lock:
-            for k in kinds:
-                self.db.execute("UPDATE files SET backed_up=? WHERE kind=?", (when, k))
-            self.db.commit()
+    def mark_backed_up(self, paths: list[Path], when: str) -> None:
+        with self._lock, self.db:
+            self.db.executemany("UPDATE files SET backed_up=? WHERE path=?",
+                                [(when, str(path.resolve())) for path in paths])
 
     def delete_files(self, kinds: list[str], only_backed_up: bool) -> tuple[int, int]:
         n = freed = 0

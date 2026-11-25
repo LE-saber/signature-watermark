@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](https://github.com/LE-saber/signature-watermark/blob/main/README.ja.md)
 
-The Japanese guide is available online. Existing v1.0.4 archives retain their original three README versions; this documentation change does not rebuild release assets.
+The Japanese guide is available online.
 
 [![Build](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml/badge.svg)](https://github.com/LE-saber/signature-watermark/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/LE-saber/signature-watermark)](https://github.com/LE-saber/signature-watermark/releases/latest)
@@ -12,6 +12,10 @@ A portable desktop app that turns signature photos into electronic signatures wi
 Give each issued signature a separate ID and purpose, then check which issuance a signature came from when it appears in another document. Processing and signing records stay on your computer.
 
 ![Batch watermarking with a signature preview](docs/images/batch-watermark.png)
+
+## What changed in 1.0.5
+
+Fixed false backup flags after merge restore and restored issuance-to-PNG links. After upgrading, make a new backup before using backed-up-only cleanup.
 
 ## What changed in 1.0.4
 
@@ -28,14 +32,14 @@ Back up records, outputs and the password before upgrading. Older settings with 
 
 Choose a **portable application archive** from [Releases](https://github.com/LE-saber/signature-watermark/releases/latest). The automatically generated “Source code” downloads require a Python environment.
 
-| Platform | Version 1.0.4 | Launch after extraction |
+| Platform | Version 1.0.5 | Launch after extraction |
 | --- | --- | --- |
-| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
-| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-arm64.zip) | `SigWatermark.app` |
-| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-macos-x64.zip) | `SigWatermark.app` |
-| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SigWatermark-1.0.4-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
+| Windows x64 | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-windows-x64.zip) | `SigWatermark/SigWatermark.exe` |
+| macOS Apple Silicon | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-macos-arm64.zip) | `SigWatermark.app` |
+| macOS Intel | [ZIP](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-macos-x64.zip) | `SigWatermark.app` |
+| Linux x64 | [tar.gz](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SigWatermark-1.0.5-linux-x64.tar.gz) | `./SigWatermark/SigWatermark` |
 
-No separate Python installation is needed. Extract the entire archive and keep all support files together. Every archive includes an English quick-start guide and all three README versions. Verify downloads with [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.4/SHA256SUMS.txt).
+No separate Python installation is needed. Extract the entire archive and keep all support files together. Every archive includes an English quick-start guide and all three README versions. Verify downloads with [`SHA256SUMS.txt`](https://github.com/LE-saber/signature-watermark/releases/download/v1.0.5/SHA256SUMS.txt).
 
 Windows builds are unsigned. macOS builds are unsigned and not notarized; first launch may require approval in macOS security settings. Native macOS builds use macOS 15 runners. Linux builds use Ubuntu 22.04 and require a working desktop environment. On Debian/Ubuntu, install missing Qt/xcb runtime libraries with:
 
