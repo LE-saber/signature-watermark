@@ -1,0 +1,54 @@
+name: Publish SigWatermark v1.0.5 once
+on:
+  push:
+    branches: [ci/publish-sigwatermark-v1.0.5]
+permissions:
+  contents: read
+concurrency: sigwatermark-v1.0.5-release
+jobs:
+  publish:
+    if: github.repository == 'LE-saber/signature-watermark' && github.ref == 'refs/heads/ci/publish-sigwatermark-v1.0.5'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: write
+    env:
+      RELEASE_SHA: 96066edf6e701339b386d530c10ba919de28e5c8
+      CANDIDATE_SHA: 67bb793c7fb9c9b413d59759dc78afe3c3b2f3bc
+      BUILD_RUN: '45552205942'
+      GH_REPO: LE-saber/signature-watermark
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+      - name: Verify and publish the four tested archives
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test "$(git rev-parse HEAD^{tree})" = 5bbe1d2c424d84199d73feaeab78d5622e32c918
+          grep -Fx '__version__ = "1.0.5"' sigwm/__init__.py
+          gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN" | jq -e --arg head "$CANDIDATE_SHA" '
+            .workflow_id == 388101214 and .head_sha == $head and .event == "pull_request" and
+            .status == "completed" and .conclusion == "success"' >/dev/null
+          gh run download "$BUILD_RUN" --pattern 'SigWatermark-*' --dir artifacts
+          mkdir release-assets
+          names=(
+            SigWatermark-1.0.5-windows-x64.zip
+            SigWatermark-1.0.5-macos-arm64.zip
+            SigWatermark-1.0.5-macos-x64.zip
+            SigWatermark-1.0.5-linux-x64.tar.gz
+          )
+          for file in "${names[@]}"; do
+            mapfile -t matches < <(find artifacts -type f -name "$file")
+            test "${#matches[@]}" -eq 1
+            test -s "${matches[0]}"
+            cp -- "${matches[0]}" "release-assets/$file"
+          done
+          (cd release-assets && sha256sum SigWatermark-* | tee SHA256SUMS.txt)
+          gh api --method POST "repos/$GH_REPO/git/refs" -f ref=refs/tags/v1.0.5 -f sha="$RELEASE_SHA" >/dev/null
+          gh release create v1.0.5 release-assets/* --verify-tag --latest --title "SigWatermark v1.0.5" --notes-file packaging/RELEASE_NOTES.md
